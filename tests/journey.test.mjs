@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { missions, branches, getOptions, changeChoice, proposalFor, choiceFields } from '../public/journey.js';
-import { cleanAnswers, validateField, errorsForStep, firstInvalidStep, allowedStep, parseSaved } from '../public/validation.js';
-import { answerRows, prototypeMarkup, buildIdeaDocument } from '../public/experience.js';
+import { missions, branches, getOptions, changeChoice, proposalFor, choiceFields } from '../public/previous/journey.js';
+import { cleanAnswers, validateField, errorsForStep, firstInvalidStep, allowedStep, parseSaved } from '../public/previous/validation.js';
+import { answerRows, prototypeMarkup, buildIdeaDocument } from '../public/previous/experience.js';
 const logo = 'data:image/png;base64,iVBORw0KGgo=';
 const valid = { ...cleanAnswers({}), appName: 'Mi app', customSituation: 'Quiero organizar las actividades de mi barrio.', mission: 'entregas', mainFunction: 'calendar', audience: 'reader', mode: 'mode-0', test: 'test-0', improve: 'improve-0', note: '' };
 test('Todas las combinaciones de los 13 recorridos son válidas y producen propuestas distintas', () => {

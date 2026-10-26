@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanAnswers, validateField, errorsForStep, allowedStep, parseSaved } from '../public/validation.js';
-import { changeChoice, proposalFor } from '../public/journey.js';
-import { answerRows, proposalMarkup, buildIdeaDocument } from '../public/experience.js';
+import { cleanAnswers, validateField, errorsForStep, allowedStep, parseSaved } from '../public/previous/validation.js';
+import { changeChoice, proposalFor } from '../public/previous/journey.js';
+import { answerRows, proposalMarkup, buildIdeaDocument } from '../public/previous/experience.js';
 
 const situation = 'Quiero coordinar actividades para las personas de mi barrio.';
 const valid = { ...cleanAnswers({}), mission: 'propia', appName: 'Mi barrio', customSituation: situation,

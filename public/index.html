@@ -1,23 +1,30 @@
 <!doctype html>
 <html lang="es-AR">
 <head>
-<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Probá cómo piensa un equipo de Desarrollo de Software. Una misión de 15 a 20 minutos para diseñar una app escolar, sin programar.">
-<title>Hackeá la solución · Universo ICES</title><link rel="icon" href="./favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="./styles.css">
-<link rel="stylesheet" href="./motion.css">
-<link rel="stylesheet" href="./experience.css">
+<meta name="description" content="Convertí un problema cotidiano en una idea de app. Elegí usuarios, tres funciones, una prioridad y una prueba. Una experiencia de ICES, sin cuentas ni programación.">
+<meta name="theme-color" content="#123b5a">
+<meta property="og:title" content="Hackeá la solución · Universo ICES">
+<meta property="og:description" content="Un problema, tres funciones y una primera versión. Probá cómo piensa un equipo de Desarrollo de Software.">
+<meta property="og:type" content="website">
+<title>Hackeá la solución · Universo ICES</title>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./activity.css">
 </head>
 <body>
 <a class="skip" href="#workspace">Saltar a la actividad</a>
-<header class="topbar"><div class="brand"><img class="brand-logo" src="./ices-superior-transparente.png" alt="ICES Educación Superior" width="120" height="76" fetchpriority="high"><div class="brand-copy"><span class="brand-name">UNIVERSO ICES</span><span class="brand-subtle">Tecnicatura Superior en Desarrollo de Software</span></div></div><span class="topnote">Desarrollo de software</span></header>
-<section class="hero" aria-labelledby="title"><div><p class="eyebrow"><span class="live-dot"></span>Laboratorio de ideas</p><h1 id="title">Hackeá <em>la solución.</em></h1><p class="intro">¿Y si pudieras mejorar tu escuela con una app?<br>Probá cómo piensa un equipo de Desarrollo de Software.</p><div class="hero-tags"><span>15–20 minutos</span><span>Desde tu dispositivo</span><span>Sin programar</span></div></div><div class="hero-art" aria-hidden="true"><div class="art-square">{&nbsp;}</div><span class="art-star">✳</span><span class="art-tag">PENSAR → CREAR → PROBAR</span></div></section>
-<noscript>Para completar la actividad, habilitá JavaScript en tu navegador.</noscript>
-<div class="layout"><aside class="sidebar" aria-label="Progreso de la actividad"><div class="track-head"><span>Tu recorrido</span><span id="count">0 / 6</span></div><div class="progress" role="progressbar" aria-label="Etapas completas" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0"><span id="bar"></span></div><nav id="steps" aria-label="Etapas"></nav><p class="sidebar-note"><strong>Pensá como un dev</strong><br>Cada decisión tiene un porqué. Explorá tus ideas y cambiá lo que necesites.</p><p id="saved" class="save-state" role="status">Guardado en este navegador</p></aside>
-<main id="workspace" class="workspace" tabindex="-1"><div id="view"></div><div class="footer-actions" id="actions"></div></main>
-<div></div><div class="utilities"><button class="text-button" id="reset">Reiniciar mi experiencia</button></div></div>
-<footer class="bottom"><p>Analizar → Diseñar → Probar → Mejorar → Programar</p><p>Una experiencia creada por estudiantes de 2.º año · Tecnicatura Superior en Desarrollo de Software</p></footer><div class="toast" id="toast" role="status" aria-live="polite"></div>
-<dialog id="reset-dialog"><h2>¿Empezar de nuevo?</h2><p>Se borrarán tus respuestas de este navegador y volverás al principio de la experiencia.</p><div class="dialog-actions"><button class="button secondary" id="cancel-reset">Cancelar</button><button class="button" id="confirm-reset">Borrar respuestas</button></div></dialog>
+<header class="topbar"><div class="brand"><img class="brand-logo" src="./ices-logo-web.png" alt="ICES Educación Superior" width="120" height="63" fetchpriority="high"><div><strong>UNIVERSO ICES</strong><span>Tecnicatura Superior en Desarrollo de Software</span></div></div><span class="topnote">Laboratorio de ideas</span></header>
+<section class="hero" aria-labelledby="title"><div><p class="eyebrow">Una necesidad, muchas soluciones</p><h1 id="title">Hackeá <em>la solución.</em></h1><p>¿Y si pudieras mejorar algo de tu escuela, tu barrio o tu vida cotidiana con una app?</p><div class="hero-tags"><span>Sin programar</span><span>Desde tu dispositivo</span><span>15–20 min para explorar y conversar</span></div></div><div class="hero-art" aria-hidden="true"><span>{ }</span><small>PENSAR → CREAR → PROBAR</small></div></section>
+<noscript><p class="notice">Esta actividad necesita JavaScript. Podés acercarte al stand y resolverla con nosotros en papel: problema, personas, tres funciones, prioridad y una prueba.</p></noscript>
+<div class="privacy-note"><strong>Tu idea es tuya.</strong> No incluyas datos personales. Tus respuestas quedan en este navegador; no se envían al equipo y no se sincronizan con otros dispositivos. El alojamiento puede registrar datos técnicos de las visitas.</div>
+<div id="storage-warning" class="notice warning" role="alert" hidden><strong>No podemos guardar tu avance.</strong> Tus respuestas siguen en esta pestaña, pero podrían perderse al cerrarla o recargar. Al terminar, copiá el resumen o descargá tu ficha.</div>
+<div id="tab-conflict" class="notice warning" role="alert" hidden><p><strong>Otra pestaña cambió el recorrido guardado.</strong> Detuvimos el guardado de esta pestaña para evitar sobrescribirlo. Podés cargar ese recorrido o guardar las respuestas que ves aquí.</p><div class="tool-buttons"><button class="button secondary" id="load-other">Cargar el otro recorrido</button><button class="button" id="keep-mine">Guardar el de esta pestaña</button></div></div>
+<div class="layout"><aside class="sidebar" aria-label="Progreso de la actividad"><p id="current-step" class="current-step">Paso 1 de 7</p><div class="track-head"><span>Etapas completas</span><span id="count">0 / 7</span></div><div id="progress" role="progressbar" aria-label="Etapas completas" aria-valuemin="0" aria-valuemax="7" aria-valuenow="0"><progress id="bar" value="0" max="7" aria-hidden="true"></progress></div><details class="step-panel"><summary>Ver etapas y volver a una anterior</summary><nav id="steps" aria-label="Etapas de tu idea"></nav></details><p id="saved" class="save-state" role="status">Preparando guardado…</p><p class="sidebar-note">Analizá el problema, diseñá, probá y mejorá antes de programar.</p></aside><main id="workspace" class="workspace" aria-labelledby="view-title"><div id="view"></div><div class="footer-actions no-print" id="actions"></div></main><div></div><div class="utilities no-print"><button class="text-button" id="reset">Reiniciar mi experiencia</button></div></div>
+<footer class="bottom"><p>Estudiantes de 2.º año · Tecnicatura Superior en Desarrollo de Software · ICES Educación Superior</p><p id="offline-state" role="status">Preparando el uso sin conexión…</p><p>Para consultar por la carrera y la inscripción, acercate a nuestro stand.</p></footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog id="reset-dialog" aria-labelledby="reset-title" aria-describedby="reset-description"><h2 id="reset-title">¿Empezar de nuevo?</h2><p id="reset-description">Se reiniciarán las respuestas del recorrido actual. Las versiones anteriores se conservan.</p><div class="tool-buttons"><button class="button secondary" id="cancel-reset" autofocus>Cancelar</button><button class="button" id="confirm-reset">Borrar respuestas actuales</button></div></dialog>
+<dialog id="copy-dialog" aria-labelledby="copy-title" aria-describedby="copy-help"><h2 id="copy-title">Tu resumen para copiar</h2><p id="copy-help">Seleccioná el texto y usá la opción Copiar de tu dispositivo.</p><textarea id="copy-text" readonly rows="10" aria-label="Resumen completo de tu idea"></textarea><button class="button" id="close-copy">Cerrar</button></dialog>
 <script type="module" src="./app.js"></script>
 </body></html>

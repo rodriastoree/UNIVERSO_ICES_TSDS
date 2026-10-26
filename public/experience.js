@@ -1,62 +1,48 @@
 import { normalizeText, firstInvalidStep } from './validation.js';
-import { missions, choiceFields, prompts, selectedOption, proposalFor } from './journey.js';
+import { missions, functionTitle, problemFor, audienceFor, selectedOption, proposalFor } from './journey.js';
 import { sheetTheme } from './sheet-theme.js';
-export const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, character => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-})[character]);
+export const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 export function randomMission(current, random = Math.random) {
   const options = missions.filter(m => m.id !== current);
   return options[Math.min(options.length - 1, Math.max(0, Math.floor(random() * options.length)))].id;
 }
 export function ideaFilename(name) {
-  const base = normalizeText(name).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60).replace(/-$/g, '');
+  const base = normalizeText(name).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60).replace(/-$/g, '');
   return `mi-idea-${base || 'universo-ices'}.html`;
 }
-export function answerRows(answers) {
+const optionText = (key, a) => { const o = selectedOption(key, a); return o ? `${o.title}. ${o.detail}` : ''; };
+export function answerRows(a) {
   return [
-    { label: 'Nombre de tu app', value: answers.appName, step: 0 },
-    { label: 'Misión', value: missions.find(m => m.id === answers.mission)?.title || '', step: 0 },
-    ...(answers.mission === 'propia' ? [{ label: 'Tu situación', value: answers.customSituation, step: 0 }] : []),
-    ...choiceFields.map((key, index) => { const option = selectedOption(key, answers);
-      return { label: prompts[key], value: option ? `${option.title}. ${option.detail}` : '', step: index + 1 }; }),
-    { label: 'Tu toque personal (opcional)', value: answers.note.trim() || 'No agregaste un comentario.', step: 5 }
+    { label: 'Nombre de tu app', value: a.appName, step: 0 },
+    { label: 'Problema que querés resolver', value: problemFor(a), step: 0 },
+    { label: 'Personas y rol', value: `${audienceFor(a)}. ${optionText('audience', a)}`, step: 1 },
+    { label: 'Tres funciones', value: a.functions.map((id, i) => `${i + 1}. ${functionTitle(id, a)}`).join('\n'), step: 2 },
+    { label: 'Primera función y motivo', value: `${functionTitle(a.mainFunction, a)}. ${optionText('reason', a)}`, step: 3 },
+    { label: 'Diseño de la primera versión', value: optionText('mode', a), step: 4 },
+    { label: 'Prueba y meta propuestas', value: `${optionText('test', a)}\nParticipantes: ${a.participants}. Meta: al menos ${a.target} de ${a.participants} completan la tarea sin ayuda sobre el diseño. Es un plan; todavía no se realizó.`, step: 5 },
+    { label: 'Mejora propuesta', value: optionText('improve', a), step: 6 },
+    ...(a.note.trim() ? [{ label: 'Tu toque personal', value: a.note, step: 6 }] : [])
   ];
 }
-export function prototypeMarkup(answers) {
-  const proposal = proposalFor(answers);
-  if (!proposal) return '';
-  return `<section class="prototype-preview" aria-labelledby="prototype-title">
-    <div class="prototype-description"><p class="eyebrow">De tus elecciones a una pantalla</p><h3 id="prototype-title">Así podría empezar tu app.</h3>
-    <p>Este boceto reúne tu función principal, el enfoque que elegiste y una tarea para probar. Es una ilustración: los controles dibujados no realizan acciones.</p>
-    <p class="prototype-note">Dibujá cómo se vería esta primera pantalla y comprobá si se entiende.</p></div>
-    <div class="phone-mockup" role="group" aria-label="Boceto ilustrativo de tu app"><div class="phone-camera" aria-hidden="true"></div>
-    <div class="phone-screen"><p class="phone-eyebrow">Mi primera app</p><h4>${escapeHTML(answers.appName)}</h4><p class="phone-welcome">Tu idea empieza por acá</p>
-    <ol class="prototype-functions">${proposal.screens.map((text, index) => `<li class="prototype-function ${index === 0 ? 'prototype-primary' : ''}"><span class="prototype-number">0${index + 1}</span><div><strong>${escapeHTML(text)}</strong><span class="prototype-first">${['Acción principal', 'Tu enfoque', 'Tarea para probar'][index]}</span></div></li>`).join('')}</ol>
-    <p class="phone-caption">Boceto ilustrativo · sin interacción</p></div></div></section>`;
+export function ideaText(a) {
+  if (firstInvalidStep(a) !== -1) throw new Error('Completá tu idea antes de copiarla.');
+  return `${a.appName} · Universo ICES\n\n${answerRows(a).map(row => `${row.label}\n${row.value}`).join('\n\n')}\n\nAnalizar → Diseñar → Probar → Mejorar → Programar.\nPropuesta para seguir explorando; no son resultados de una prueba realizada.\nTecnicatura Superior en Desarrollo de Software · ICES Educación Superior`;
 }
-export function proposalMarkup(answers) {
-  const proposal = proposalFor(answers);
-  if (!proposal) return '';
-  const item = (title, text) => `<div class="answer-item"><h4>${title}</h4><p>${escapeHTML(text)}</p></div>`;
-  return `<section class="conclusion-card personal-result" aria-labelledby="result-title"><p class="eyebrow">Propuesta según tus decisiones</p>
-    <h3 id="result-title">${escapeHTML(proposal.title)}</h3><p class="result-lead">${escapeHTML(proposal.concept)}</p>
-    ${proposal.situation ? item('La situación de la que partís', proposal.situation) : ''}${item('Tu primera versión', proposal.firstVersion)}${item('Una prueba para empezar', proposal.test)}${item('Qué observar', proposal.observe)}${item('Tu siguiente mejora', proposal.improve)}
-    <p class="conclusion-note">Estas sugerencias se arman a partir de tus elecciones. No son una evaluación ni resultados de una prueba realizada. Tu comentario personal se conserva en el resumen y podés usarlo para adaptar la propuesta.</p>
-    <div class="process-strip" aria-label="Proceso de desarrollo"><span>Analizar</span><span>Diseñar</span><span>Probar</span><span>Mejorar</span><span>Programar</span></div></section>`;
+export function prototypeMarkup(a) {
+  const p = proposalFor(a);
+  if (!p) return '';
+  return `<section class="prototype-preview" aria-labelledby="prototype-title"><div class="prototype-description"><p class="eyebrow">Del análisis al diseño</p><h3 id="prototype-title">Tus tres funciones, una para empezar.</h3><p>La primera aparece destacada. Es un boceto ilustrativo: no es una app construida y sus controles no realizan acciones.</p><p>Dibujá cómo se vería la primera pantalla y usala para la prueba que elegiste.</p></div><div class="phone-mockup" role="group" aria-label="Boceto ilustrativo de las tres funciones"><div class="phone-camera" aria-hidden="true"></div><div class="phone-screen"><p class="phone-eyebrow">Tu futura app</p><h4>${escapeHTML(a.appName)}</h4><ol class="prototype-functions">${p.screens.map((text, i) => `<li class="prototype-function ${i === 0 ? 'prototype-primary' : ''}"><span class="prototype-number">0${i + 1}</span><div><strong>${escapeHTML(text)}</strong><span class="prototype-first">${i === 0 ? 'Primera versión' : 'Para más adelante'}</span></div></li>`).join('')}</ol><p class="phone-caption">Ilustración · sin interacción</p></div></div></section>`;
 }
-export const careerMarkup = `<section class="career-card"><p class="eyebrow">¿Te gustó pensar una solución?</p><h3>Esto también se aprende en la Tecnicatura Superior en Desarrollo de Software.</h3>
-  <p>Somos estudiantes de <strong>2.º año de la Tecnicatura Superior en Desarrollo de Software</strong>. Acercate al stand para conocer qué aprendemos, ver proyectos y consultar por la inscripción.</p><p class="career-question">¿Qué te gustaría aprender a crear?</p></section>`;
-export function buildIdeaDocument(answers, missionTitle, logoDataUrl) {
-  if (firstInvalidStep(answers) !== -1) throw new Error('Completá las decisiones antes de guardar.');
+export function proposalMarkup(a) {
+  const p = proposalFor(a);
+  if (!p) return '';
+  return `<section class="personal-result" aria-labelledby="result-title"><p class="eyebrow">Conclusión de tu recorrido</p><h3 id="result-title">Tu idea tiene un punto de partida.</h3><p>${escapeHTML(p.firstVersion)}</p><h4>Cómo comprobarla</h4><p>${escapeHTML(p.test)}</p><p>${escapeHTML(p.observe)}</p><h4>Después de observar</h4><p>${escapeHTML(p.improve)}</p><p class="conclusion-note">Esta propuesta combina tus elecciones; no interpreta automáticamente tu texto ni evalúa tu idea. La prueba todavía no se realizó. Tu comentario personal sirve para adaptar el plan.</p><p class="process-strip">Analizar → Diseñar → Probar → Mejorar → Programar</p></section>`;
+}
+export const careerMarkup = `<section class="career-card"><p class="eyebrow">Esto también es desarrollar software</p><h3>Hoy analizaste, elegiste y pensaste cómo probar.</h3><p>En la <strong>Tecnicatura Superior en Desarrollo de Software</strong> aprendemos a transformar necesidades en soluciones: analizar problemas, diseñar interfaces, programar, probar y mejorar.</p><p>Somos estudiantes de 2.º año. <strong>Acercate al stand de ICES Educación Superior</strong> para ver proyectos, conversar sobre la carrera y consultar por la inscripción.</p><p class="career-question">¿Qué te gustaría aprender a crear?</p></section>`;
+export function buildIdeaDocument(a, missionTitle, logoDataUrl) {
+  if (firstInvalidStep(a) !== -1) throw new Error('Completá las decisiones antes de guardar.');
   if (typeof logoDataUrl !== 'string' || !/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(logoDataUrl)) throw new Error('No se pudo incluir el logo.');
-  return `<!doctype html><html lang="es-AR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
-  <title>${escapeHTML(answers.appName)} · Mi idea · Universo ICES</title><style>${sheetTheme}
-  .personal-result{margin:28px 0;padding:28px;border:1px solid #b4daeb;border-radius:16px;background:#eaf7fd}.personal-result h3{font-size:28px;line-height:1.2}.personal-result h4{margin-bottom:4px}.personal-result p{overflow-wrap:anywhere}.career-card{padding:28px;border-radius:16px;background:#123b5a;color:white;margin-top:24px}.career-card h3{font-size:24px;line-height:1.3}.process-strip{display:flex;flex-wrap:wrap;gap:8px}.process-strip span{border:1px solid #baddeb;border-radius:20px;padding:5px 10px;font-size:12px}@media(max-width:640px){.personal-result,.career-card{padding:20px}}@media print{.personal-result,.career-card{break-inside:auto}}
-  </style></head><body><header class="sheet-topbar"><div class="sheet-topbar-inner"><div class="sheet-brand"><img class="sheet-logo" src="${logoDataUrl}" alt="ICES Educación Superior" width="132" height="76"><div class="sheet-brand-copy"><strong class="sheet-brand-name">UNIVERSO ICES</strong><span class="sheet-degree">Tecnicatura Superior en Desarrollo de Software</span></div></div><span class="sheet-topnote">Tu idea, de principio a fin</span></div></header>
-  <main class="sheet-wrap"><section class="sheet-hero"><div><p class="eyebrow">Laboratorio de ideas · Mi recorrido</p><h1>Hackeá <em>la solución.</em></h1><p class="sheet-intro">Tus elecciones y una propuesta para seguir creando.</p><div class="sheet-tags"><span>Mi ficha personal</span><span>Desde tu dispositivo</span><span>Para seguir creando</span></div></div><div class="sheet-art" aria-hidden="true"><div class="sheet-art-square">{&nbsp;}</div><span class="sheet-art-star">✳</span><span class="sheet-art-tag">PENSAR → CREAR → PROBAR</span></div></section>
-  <section class="sheet-overview"><div class="sheet-overview-body"><p class="sheet-app-label">Tu app</p><h2 class="sheet-app-name">${escapeHTML(answers.appName)}</h2><div class="sheet-mission"><span>Misión elegida</span><strong>${escapeHTML(missionTitle)}</strong></div><p class="sheet-read-note">Podés abrir esta ficha sin conexión o usar Imprimir para guardarla como PDF.</p></div></section>
-  ${proposalMarkup(answers)}<h2>Todas tus respuestas</h2><div class="sheet-grid">${answerRows(answers).map((row, index) => `<section class="sheet-section"><div class="sheet-section-head"><span class="sheet-section-number">${String(index + 1).padStart(2, '0')}</span><h2>${escapeHTML(row.label)}</h2></div><div class="sheet-section-body"><div class="sheet-answer"><p>${escapeHTML(row.value)}</p></div></div></section>`).join('')}</div>
-  ${prototypeMarkup(answers)}${careerMarkup}<footer class="sheet-footer"><p>Analizar → Diseñar → Probar → Mejorar → Programar</p><p>Estudiantes de 2.º año · Tecnicatura Superior en Desarrollo de Software · ICES Educación Superior</p></footer></main></body></html>`;
+  return `<!doctype html><html lang="es-AR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>${escapeHTML(a.appName)} · Mi idea · Universo ICES</title><style>${sheetTheme}
+  *{overflow-wrap:anywhere}.personal-result{background:#eaf7fd;border:1px solid #b4daeb;border-radius:16px;padding:24px;margin:24px 0}.personal-result h3,.career-card h3{font-size:25px;line-height:1.3}.personal-result h4{margin-bottom:4px}.conclusion-note{border-top:1px solid #baddeb;padding-top:12px;font-size:13px}.career-card{background:#123b5a;color:white;border-radius:16px;padding:24px;margin:24px 0}.career-card .eyebrow{color:#b9eafa}.sheet-section h2{font-size:19px}@media print{.personal-result,.career-card{break-inside:auto}.career-card{color:black;background:white;border:1px solid #777}}
+  </style></head><body><header class="sheet-topbar"><div class="sheet-topbar-inner"><div class="sheet-brand"><img class="sheet-logo" src="${logoDataUrl}" alt="ICES Educación Superior" width="132" height="70"><div class="sheet-brand-copy"><strong class="sheet-brand-name">UNIVERSO ICES</strong><span class="sheet-degree">Tecnicatura Superior en Desarrollo de Software</span></div></div></div></header><main class="sheet-wrap"><section class="sheet-hero"><div><p class="eyebrow">Laboratorio de ideas · Mi ficha</p><h1>Hackeá <em>la solución.</em></h1><p>Tu propuesta completa, para seguir creando.</p></div></section><section class="sheet-overview"><div class="sheet-overview-body"><p class="sheet-app-label">Tu app</p><h2 class="sheet-app-name">${escapeHTML(a.appName)}</h2><p>Misión: ${escapeHTML(missionTitle)}</p><p class="sheet-read-note">Esta ficha se puede abrir sin conexión. Usá la impresión de tu navegador para guardarla como PDF. Conserva tu idea; no permite reanudar la actividad.</p></div></section><h2>Todas tus respuestas</h2><div class="sheet-grid">${answerRows(a).map((row, i) => `<section class="sheet-section"><div class="sheet-section-head"><span class="sheet-section-number">${i + 1}</span><h2>${escapeHTML(row.label)}</h2></div><div class="sheet-section-body"><div class="sheet-answer"><p>${escapeHTML(row.value)}</p></div></div></section>`).join('')}</div>${proposalMarkup(a)}${prototypeMarkup(a)}${careerMarkup}<footer class="sheet-footer"><p>Analizar → Diseñar → Probar → Mejorar → Programar</p><p>Estudiantes de 2.º año · ICES Educación Superior</p></footer></main></body></html>`;
 }
