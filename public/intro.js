@@ -7,7 +7,14 @@ export function startIntro(root, { motion = matchMedia('(prefers-reduced-motion:
   let current = 0, paused = motion.matches, timer = null;
   const stop = () => { if (timer !== null) cancel(timer); timer = null; };
   const render = () => {
-    scenes.forEach((scene, index) => { scene.hidden = index !== current; });
+    scenes.forEach((scene, index) => {
+      const active = index === current;
+      // Ambas capas permanecen dibujadas durante el fundido; solo la actual es accesible.
+      scene.hidden = false;
+      scene.setAttribute('data-active', String(active));
+      scene.setAttribute('aria-hidden', String(!active));
+      scene.inert = !active;
+    });
     choices.forEach((choice, index) => choice.setAttribute('aria-pressed', String(index === current)));
     toggle.textContent = paused ? 'Reanudar animación' : 'Pausar animación';
     root.setAttribute('data-paused', String(paused));

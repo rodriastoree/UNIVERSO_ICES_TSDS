@@ -19,13 +19,16 @@ function fixture(reduced = false) {
   root.querySelector = key => key === '[data-motion-toggle]' ? toggle : controls;
   let nextId = 0; const timers = new Map();
   const controller = startIntro(root, { motion, doc, schedule: (fn, ms) => { assert.equal(ms, 5000); timers.set(++nextId, fn); return nextId; }, cancel: id => timers.delete(id) });
-  return { scenes, choices, toggle, motion, doc, view, controller, timers, tick: () => [...timers.values()].forEach(fn => fn()), active: () => scenes.findIndex(scene => !scene.hidden) };
+  return { scenes, choices, toggle, motion, doc, view, controller, timers, tick: () => [...timers.values()].forEach(fn => fn()), active: () => scenes.findIndex(scene => scene.attributes['data-active'] === 'true') };
 }
 
-test('las cuatro escenas cambian en bucle y solo una queda visible', () => {
+test('las cuatro escenas cambian en bucle y solo la actual es accesible durante el fundido', () => {
   const f = fixture();
   for (let i = 0; i < 9; i++) {
-    assert.equal(f.active(), i % 4); assert.equal(f.scenes.filter(scene => !scene.hidden).length, 1);
+    assert.equal(f.active(), i % 4);
+    assert.equal(f.scenes.filter(scene => scene.attributes['aria-hidden'] === 'false').length, 1);
+    assert.equal(f.scenes.filter(scene => !scene.inert).length, 1);
+    assert.ok(f.scenes.every(scene => !scene.hidden), 'las capas se conservan para desvanecerse');
     assert.equal(f.choices[i % 4].attributes['aria-pressed'], 'true'); f.tick();
   }
 });
