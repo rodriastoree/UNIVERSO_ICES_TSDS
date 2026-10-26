@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fieldRules, stepFields, validateField, errorsForStep, firstInvalidStep,
-  allowedStep, cleanAnswers, parseSaved } from '../public/validation.js';
+  allowedStep, cleanAnswers, parseSaved } from '../public/legacy/validation.js';
 
 const valid = {
   appName: 'Agenda 5.º año', mission: 'entregas',
@@ -65,10 +65,30 @@ test('acepta acentos, números dentro de frases, signos y caracteres Unicode leg
   assert.equal(validateField('appName', 'Mi A\u0301genda', valid), '');
 });
 
-test('controla mínimos, máximos, espacios de relleno y cantidad de palabras', () => {
-  assert.ok(validateField('problem', 'Idea muy corta', valid));
-  assert.ok(validateField('problem', 'Idea' + ' '.repeat(100) + 'breve', valid));
-  assert.ok(validateField('problem', 'Unapalabralargaparaevitarlosminimos', valid));
+test('acepta respuestas breves sin mínimos de palabras, letras o caracteres', () => {
+  for (const [key, rule] of Object.entries(fieldRules)) {
+    if (rule.type !== 'text') continue;
+    for (const value of ['A', 'Sí', 'Calendario', 'Idea muy corta', 'a'.repeat(5)]) {
+      assert.equal(validateField(key, value, valid), '', `${key}: ${value}`);
+    }
+  }
+  assert.equal(validateField('problem', 'Idea' + ' '.repeat(100) + 'breve', valid), '');
+});
+
+test('respuestas de una palabra habilitan el recorrido y se conservan al recargar', () => {
+  const brief = { ...valid };
+  for (const [key, rule] of Object.entries(fieldRules)) {
+    if (rule.type === 'text') brief[key] = 'Sí';
+  }
+  Object.assign(brief, { appName: 'A', f1: 'Ver', f2: 'Crear', f3: 'Editar' });
+  for (let index = 0; index < 6; index++) assert.deepEqual(errorsForStep(index, brief), {});
+  assert.equal(allowedStep(6, brief), 6);
+  const restored = parseSaved(JSON.stringify({ ...brief, _step: 6 }));
+  assert.equal(restored.step, 6);
+  assert.deepEqual(restored.answers, brief);
+});
+
+test('conserva los máximos de longitud y los campos de una sola línea', () => {
   assert.ok(validateField('appName', 'Agenda\nEscolar', valid));
   for (const [key, rule] of Object.entries(fieldRules)) {
     if (rule.type !== 'text') continue;

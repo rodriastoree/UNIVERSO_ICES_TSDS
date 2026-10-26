@@ -1,360 +1,193 @@
 'use strict';
-
-import { fieldRules, stepFields, normalizeText, validateField, errorsForStep,
-  firstInvalidStep, allowedStep, cleanAnswers, parseSaved } from './validation.js';
-
-// Cada celular conserva únicamente sus propias respuestas. No hay servidor de datos.
-const STORAGE_KEY = 'ices-hackea-stand-v2';
-const answerKeys = Object.keys(fieldRules);
-const touched = new Set();
-const attemptedSteps = new Set();
-let navigationSignature = '';
-const steps = [
-  { name: 'La misión', title: 'Tu primera misión como dev.', time: '2 min', description: 'Elegí una situación de tu escuela y explorá cómo podrías mejorarla con una app.' },
-  { name: 'El problema', title: '¿Qué vale la pena resolver?', time: '3 min', description: 'Pensá en una dificultad concreta y en lo que provoca.' },
-  { name: 'Los usuarios', title: '¿Para quién estás diseñando?', time: '2 min', description: 'Imaginá quién usaría tu app y qué necesitaría hacer.' },
-  { name: 'Las funciones', title: 'Tres funciones. Un propósito.', time: '4 min', description: 'Elegí tres cosas que tu app permita hacer y explicá para qué sirven.' },
-  { name: 'La prioridad', title: '¿Por dónde empezarías?', time: '2 min', description: 'No hace falta construir todo de una vez. Elegí un primer paso y contá por qué.' },
-  { name: 'La validación', title: 'Tu idea se pone a prueba.', time: '3 min', description: 'Pensá cómo comprobarías si tu solución realmente ayuda.' }
-];
-const missions = [
-  { id: 'entregas', icon: '01', title: '¿Era para hoy?', description: 'Las fechas de entrega se mezclan entre cuadernos, mensajes y lo que alguien dijo.', question: '¿Cómo te enterás hoy de las fechas? ¿Qué pasa cuando cambia una entrega?' },
-  { id: 'avisos', icon: '02', title: 'El aviso que nadie vio', description: 'Un cambio de aula o un aviso importante no llega a todas las personas.', question: '¿Cómo distinguirías un aviso oficial? ¿A quién debería llegarle?' },
-  { id: 'actividades', icon: '03', title: 'Todo pasa a la vez', description: 'Pruebas, actividades y eventos escolares se superponen y cuesta organizarse.', question: '¿Quién conoce las actividades de cada curso? ¿Dónde aparecen los cruces?' },
-  { id: 'propia', icon: '↗', title: 'Tengo otra idea', description: 'Detectaste otro problema al organizar actividades, avisos o entregas.', question: 'Pensá en una situación concreta de tu escuela y cómo averiguarías si le pasa a otras personas.' }
-];
-const functionIdeas = [
-  'Consultar un calendario', 'Publicar un aviso', 'Entregar un trabajo',
-  'Confirmar recepción', 'Recordar una fecha', 'Ver cambios de horario'
-];
+import { fieldRules, stepFields, validateField, errorsForStep, firstInvalidStep, allowedStep, cleanAnswers, parseSaved, normalizeText } from './validation.js';
+import { missions, branches, choiceFields, prompts, getOptions, selectedOption, changeChoice } from './journey.js';
+import { escapeHTML as escape, randomMission, ideaFilename, answerRows, prototypeMarkup, proposalMarkup, careerMarkup, buildIdeaDocument } from './experience.js';
+const STORAGE_KEY = 'ices-hackea-stand-v3';
 const $ = id => document.getElementById(id);
-const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, character => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-})[character]);
-
+const steps = [
+  { name: 'La misión', title: 'Tu primera misión como dev.', description: 'Elegí una situación y poné un nombre a tu app.' },
+  { name: 'La función', title: 'Una función para empezar.', description: 'Elegí qué permitirá hacer tu app. Las próximas opciones van a adaptarse a esta decisión.' },
+  { name: 'Las personas', title: '¿A quién ayudarías primero?', description: 'Elegí para quién diseñarías la primera versión. Podés ampliarla después.' },
+  { name: 'El enfoque', title: 'Hacé tuya la solución.', description: 'Ahora decidí cómo funcionaría esa acción principal.' },
+  { name: 'La prueba', title: 'Tu idea se pone a prueba.', description: 'Podés probar una pantalla dibujada antes de programar. Elegí una tarea para observar.' },
+  { name: 'La mejora', title: 'Probá, aprendé y mejorá.', description: 'Imaginá qué revisarías si alguien tiene dificultades. Si querés, sumá un detalle propio.' }
+];
 let answers = cleanAnswers({});
 let currentStep = 0;
+let legacyAvailable = false;
+const touched = new Set();
+const editing = new Set();
+const attempted = new Set();
 let toastTimer;
 try {
   const saved = parseSaved(localStorage.getItem(STORAGE_KEY) || '{}');
-  answers = saved.answers;
-  currentStep = saved.step;
-} catch {
-  // La experiencia sigue funcionando si el navegador bloquea el almacenamiento.
-}
-
-const hasAnswer = key => Boolean(answers[key]?.trim());
-const selectedMission = () => missions.find(mission => mission.id === answers.mission);
-const selectedFunction = () => ['1', '2', '3'].includes(answers.priority)
-  ? answers['f' + answers.priority].trim()
-  : '';
-
-function isComplete(index) {
-  return Object.keys(errorsForStep(index, answers)).length === 0;
-}
-
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...answers, _step: currentStep }));
-    $('saved').textContent = 'Guardado en tu celular o navegador';
-  } catch {
-    $('saved').textContent = 'Tus respuestas siguen en esta pestaña';
-  }
-}
-
+  answers = saved.answers; currentStep = saved.step;
+  const previous = JSON.parse(localStorage.getItem('ices-hackea-stand-v2') || '{}');
+  legacyAvailable = previous && typeof previous === 'object' && Object.keys(previous).some(key => !key.startsWith('_') && typeof previous[key] === 'string' && previous[key].trim());
+} catch { /* El recorrido funciona también sin almacenamiento. */ }
+const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+const scrollBehavior = () => motionPreference.matches ? 'instant' : 'smooth';
+const complete = index => Object.keys(errorsForStep(index, answers)).length === 0;
+const selectedMission = () => missions.find(m => m.id === answers.mission);
 function notify(message) {
-  $('toast').textContent = message;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { $('toast').textContent = ''; }, 5000);
+  $('toast').textContent = message; clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('toast').textContent = ''; }, 6000);
 }
-
-function field(key, label, placeholder = '', help = '', short = false) {
+function persist() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...answers, _step: currentStep })); $('saved').textContent = 'Guardado en este dispositivo'; }
+  catch { $('saved').textContent = 'Tus respuestas siguen en esta pestaña'; }
+}
+function textField(key, label, placeholder, short = false) {
   const rule = fieldRules[key];
-  const describedBy = `aria-describedby="${help ? 'help-' + key + ' ' : ''}count-${key} error-${key}"`;
-  const attrs = `required minlength="${rule.min}" maxlength="${rule.max}" aria-invalid="false" ${describedBy}`;
-  const control = short
-    ? `<input type="text" id="${key}" data-answer="${key}" value="${escapeHTML(answers[key])}" placeholder="${escapeHTML(placeholder)}" ${attrs}>`
-    : `<textarea id="${key}" data-answer="${key}" placeholder="${escapeHTML(placeholder)}" ${attrs}>${escapeHTML(answers[key])}</textarea>`;
-  return `<div class="field"><label for="${key}">${label} <span aria-hidden="true">*</span></label>
-    ${help ? `<p class="help" id="help-${key}">${help}</p>` : ''}${control}
-    <p class="field-count" id="count-${key}">${answers[key].length} / ${rule.max} · mínimo ${rule.min} caracteres</p>
-    <p class="field-error" id="error-${key}" hidden></p></div>`;
+  const attrs = `data-answer="${key}" id="${key}" maxlength="${rule.max}" ${rule.optional ? '' : 'required'} aria-invalid="false" aria-describedby="count-${key} error-${key}"`;
+  return `<div class="field"><label for="${key}">${label}${rule.optional ? ' <span class="optional-label">(opcional)</span>' : ' *'}</label>
+    ${short ? `<input type="text" ${attrs} value="${escape(answers[key])}" placeholder="${escape(placeholder)}">` : `<textarea ${attrs} placeholder="${escape(placeholder)}">${escape(answers[key])}</textarea>`}
+    <p class="field-count" id="count-${key}">${answers[key].length} / ${rule.max} caracteres · sin mínimo de palabras</p><p class="field-error" id="error-${key}" hidden></p></div>`;
 }
-
-function numberField(key, label, help) {
-  const maximum = key === 'successes' && !validateField('participants', answers.participants, answers)
-    ? Number(answers.participants) : fieldRules[key].max;
-  const value = escapeHTML(answers[key]);
-  return `<div class="field"><label for="${key}">${label} <span aria-hidden="true">*</span></label>
-    <p class="help" id="help-${key}">${help}</p>
-    <input type="number" inputmode="numeric" id="${key}" data-answer="${key}" required min="1" max="${maximum}" step="1" value="${value}" aria-invalid="false" aria-describedby="help-${key} error-${key}">
-    <p class="field-error" id="error-${key}" hidden></p></div>`;
+function choiceGroup(key, title, options, mission = false) {
+  return `<fieldset class="choice-fieldset"><legend>${escape(title)}</legend><div class="${mission ? 'mission-grid' : 'priority-grid'}" aria-describedby="error-${key}">
+  ${options.map((o, i) => `<label class="${mission ? 'mission-option' : 'priority-option choice-card'}"><input type="radio" data-answer="${key}" name="${key}" value="${escape(o.id)}" ${answers[key] === o.id ? 'checked' : ''} required aria-describedby="error-${key}">
+    ${mission ? `<span class="mission-top"><span class="mission-icon">${o.icon}</span><strong>${escape(o.title)}</strong></span><span class="mission-copy">${escape(o.description)}</span>` : `<span class="choice-copy"><strong>${escape(o.title)}</strong><span>${escape(o.detail)}</span></span><span class="choice-arrow" aria-hidden="true">↗</span>`}</label>`).join('')}</div><p class="field-error" id="error-${key}" hidden></p></fieldset>`;
 }
-
-function choiceError(key) {
-  return `<p class="field-error" id="error-${key}" hidden></p>`;
+function context() {
+  const fn = selectedOption('mainFunction', answers);
+  return `<div class="mission-context"><strong>${escape(fn ? 'Tu función: ' + fn.title : 'Tu misión: ' + selectedMission().title)}</strong><span>${escape(currentStep === 1 ? selectedMission().hint : fn.detail)}</span>${currentStep > 2 ? `<span>Primera versión para: ${escape(selectedOption('audience', answers)?.title || '')}</span>` : ''}</div>`;
 }
-
-function refreshFeedback() {
-  const errors = errorsForStep(currentStep, answers);
-  for (const key of stepFields[currentStep] || []) {
-    const message = errors[key] && (touched.has(key) || attemptedSteps.has(currentStep)) ? errors[key] : '';
-    const errorElement = $('error-' + key);
-    if (errorElement) { errorElement.textContent = message; errorElement.hidden = !message; }
-    document.querySelectorAll(`[data-answer="${key}"]`).forEach(control => {
-      control.setAttribute('aria-invalid', String(Boolean(message)));
-      control.setCustomValidity(message);
-    });
-    const count = $('count-' + key);
-    if (count) count.textContent = `${answers[key].length} / ${fieldRules[key].max} · mínimo ${fieldRules[key].min} caracteres`;
-  }
-  if ($('successes')) {
-    $('successes').max = !validateField('participants', answers.participants, answers)
-      ? answers.participants : '50';
-  }
-  const summary = $('validation-summary');
-  if (summary) {
-    const entries = attemptedSteps.has(currentStep) ? Object.entries(errors) : [];
-    summary.hidden = entries.length === 0;
-    const signature = JSON.stringify(entries);
-    if (summary.dataset.signature !== signature) {
-      summary.innerHTML = entries.length
-        ? `<strong>Revisá estos puntos para continuar</strong><ul>${entries.map(([key, message]) => `<li><button type="button" class="error-link" data-focus="${key}">${fieldRules[key].label}: ${message}</button></li>`).join('')}</ul>`
-        : '';
-      summary.dataset.signature = signature;
-    }
-  }
+function questionScreen() {
+  if (currentStep === 0) return `${legacyAvailable ? '<div class="legacy-notice"><strong>Tu recorrido anterior está conservado.</strong><p>Podés abrir tus respuestas previas y guardarlas o imprimirlas.</p><a class="text-button" href="./legacy/index.html">Abrir mi recorrido anterior →</a></div>' : ''}
+    <div class="mission"><p class="eyebrow">Un problema, muchas soluciones</p><p>Elegí una misión, una función principal y las decisiones siguientes para imaginar tu app. Al final vas a recibir una propuesta según tus elecciones, sin puntajes ni respuestas correctas.</p></div>
+    ${choiceGroup('mission', 'Elegí por dónde empezar', missions, true)}<button class="text-button random" type="button" id="random-mission">Elegir una misión al azar ↻</button>
+    ${textField('appName', 'Nombre de tu app', 'Inventá un nombre, sin datos personales.', true)}
+    <details class="example"><summary>¿Cómo es la experiencia?</summary><p>La mayoría de las respuestas son de elección. Podés volver atrás y cambiar de idea. Al finalizar, guardá o imprimí el resumen completo.</p><p>Tus respuestas quedan en este navegador y no se envían a nadie. No necesitás una cuenta.</p></details>`;
+  const key = choiceFields[currentStep - 1];
+  const title = key === 'mode' ? branches[answers.mainFunction].modeTitle : prompts[key];
+  const tips = {
+    mainFunction: 'Una función es algo que la app permite hacer. Elegí una sola para pensar una primera versión sencilla.',
+    audience: 'No estás excluyendo a nadie: estás eligiendo con quién empezar a aprender y probar.',
+    mode: 'La misma función puede resolverse de distintas maneras. Tu elección cambia la propuesta final.',
+    test: 'No hace falta tener la app terminada: dibujá la pantalla y observá qué entiende la otra persona.',
+    improve: 'Una dificultad en la prueba sirve para aprender. Cambiá algo concreto y volvé a observar.'
+  };
+  return context() + choiceGroup(key, title, getOptions(key, answers))
+    + (key === 'improve' ? textField('note', 'Tu toque personal', '¿Agregarías algo distinto? Podés escribir una idea breve o dejarlo vacío.') : '')
+    + `<div class="tip"><strong>Una pista</strong>${tips[key]}</div>`;
 }
-
-function focusField(key) {
-  const control = document.querySelector(`[data-answer="${key}"]`);
-  if (!control) return;
-  control.focus({ preventScroll: true });
-  control.scrollIntoView({ behavior: 'smooth', block: 'center' });
+function summaryScreen() {
+  return `<div class="print-only summary-print-brand"><img class="print-brand-logo" src="./ices-superior-transparente.png" alt="ICES Educación Superior" width="110" height="66"><div><strong>UNIVERSO ICES · Hackeá la solución</strong>Tecnicatura Superior en Desarrollo de Software</div></div>
+    <div class="achievement"><span aria-hidden="true">✳</span><div><strong>De tus decisiones a una propuesta.</strong><p>Esta es la idea que construiste.</p></div></div>
+    <div class="summary-tools no-print"><div class="summary-tool-buttons"><button class="button" id="save-idea">Guardar mi idea ↓</button><button class="button secondary" id="print-idea">Imprimir / PDF</button></div><p>Tu ficha incluye el logo, todas tus respuestas, la propuesta y el boceto. Se puede abrir sin conexión.</p></div>
+    <div class="app-name"><span>Tu app</span><h3>${escape(answers.appName)}</h3></div>${proposalMarkup(answers)}
+    <h3>Todas tus respuestas</h3><p class="summary-intro">Estas son tus elecciones. Las sugerencias de arriba se construyeron a partir de ellas. Podés volver a cada etapa y cambiarlas.</p>
+    ${answerRows(answers).map(row => `<section class="answer"><div class="answer-heading"><h3>${escape(row.label)}</h3><button type="button" class="edit-answer no-print" data-go="${row.step}">Editar</button></div><p>${escape(row.value)}</p></section>`).join('')}
+    ${prototypeMarkup(answers)}${careerMarkup}`;
 }
-
 function updateNavigation() {
-  const completion = steps.map((_, index) => isComplete(index));
-  const completed = completion.filter(Boolean).length;
+  const completed = steps.filter((_, i) => complete(i)).length;
   const invalid = firstInvalidStep(answers);
   $('count').textContent = `${completed} / 6`;
   $('bar').style.width = `${completed / 6 * 100}%`;
   document.querySelector('[role="progressbar"]').setAttribute('aria-valuenow', completed);
-  const signature = JSON.stringify([currentStep, invalid, completion]);
-  if (navigationSignature === signature) return;
-  navigationSignature = signature;
-  $('steps').innerHTML = steps.map((step, index) => `
-    <button type="button" class="step-link ${isComplete(index) ? 'done' : ''}" data-go="${index}" ${invalid !== -1 && index > invalid ? 'disabled title="Completá las etapas anteriores para continuar"' : ''} ${currentStep === index ? 'aria-current="step"' : ''}>
-      <span class="step-num">${isComplete(index) ? '✓' : String(index).padStart(2, '0')}</span>${step.name}
-    </button>`).join('') + `
-    <button type="button" class="step-link" data-go="6" ${invalid !== -1 ? 'disabled title="Completá todas las etapas para ver tu resumen"' : ''} ${currentStep === 6 ? 'aria-current="step"' : ''}>
-      <span class="step-num">↗</span>Mi resumen
-    </button>`;
+  $('steps').innerHTML = [...steps, { name: 'Mi resumen' }].map((s, i) => `<button type="button" class="step-link ${i < 6 && complete(i) ? 'done' : ''}" data-go="${i}" ${invalid !== -1 && i > invalid ? 'disabled' : ''} ${i === currentStep ? 'aria-current="step"' : ''}><span class="step-num">${i === 6 ? '↗' : complete(i) ? '✓' : String(i + 1).padStart(2, '0')}</span>${s.name}</button>`).join('');
 }
-
-function missionScreen() {
-  return `<div class="mission"><p class="eyebrow">El desafío de la escuela</p>
-    <p>Imaginá una app para organizar <strong>actividades, avisos y entregas</strong>. Vas a decidir qué problema resolver, quién la usaría, sus tres funciones, cuál va primero y cómo la probarías.</p></div>
-    <p class="label" id="mission-label">Elegí por dónde empezar</p>
-    <p class="help">Son situaciones para explorar. Vos decidís qué solución proponer.</p>
-    <div class="mission-grid" role="radiogroup" aria-labelledby="mission-label" aria-required="true" aria-describedby="error-mission">
-      ${missions.map(mission => `<label class="mission-option">
-        <input type="radio" data-answer="mission" name="mission" required aria-describedby="error-mission" value="${mission.id}" ${answers.mission === mission.id ? 'checked' : ''}>
-        <span class="mission-top"><span class="mission-icon">${mission.icon}</span><strong>${mission.title}</strong></span>
-        <span class="mission-copy">${mission.description}</span></label>`).join('')}
-    </div>${choiceError('mission')}
-    <button type="button" class="text-button random" id="random-mission">Elegir una misión al azar ↻</button>
-    ${field('appName', 'Nombre de tu app', 'Inventá un nombre para tu idea.', 'Poné un nombre para tu proyecto, sin datos personales.', true)}
-    <details class="example"><summary>¿Cómo es la experiencia?</summary>
-      <p>Respondé desde tu celular, a tu ritmo. Podés escribir ideas breves, usar las pistas y volver atrás para cambiar lo que quieras.</p>
-      <p>Al final vas a ver tu resumen personal y una conclusión sobre lo que exploraste. No tenés que entregar nada ni crear una cuenta.</p>
-      <p>Tus respuestas quedan en este navegador y no se envían a nadie.</p>
-    </details>`;
-}
-
-function questionScreen(index) {
-  switch (index) {
-    case 0: return missionScreen();
-    case 1: return (selectedMission() ? `<div class="mission-context"><strong>Tu misión: ${escapeHTML(selectedMission().title)}</strong><span>${escapeHTML(selectedMission().question)}</span></div>` : '')
-      + field('problem', '¿Qué dificultad concreta tiene hoy la escuela?', '¿Qué sucede, a quién le pasa y en qué situación?', 'Describí el problema antes de pensar en botones o pantallas.')
-      + field('impact', '¿Qué consecuencias tiene y cómo lo investigarías?', '¿Qué se pierde, se confunde o se demora? ¿A quién le preguntarías para comprobarlo?')
-      + `<div class="tip"><strong>Una pista</strong>“La escuela no tiene una app” describe una ausencia. El problema explica qué les cuesta hacer a las personas.</div>
-        <details class="example"><summary>Ver un ejemplo orientativo</summary><p>“Las fechas de entrega se informan por distintos medios y algunos estudiantes no encuentran la versión actualizada.” Es una hipótesis: todavía habría que confirmarla con estudiantes y docentes.</p></details>`;
-    case 2: return field('users', '¿Quiénes usarían tu app y qué haría cada uno?', 'Usuario o rol → qué necesita → qué podría hacer en la app.', 'Pensá tanto en quien consulta la información como en quien la publica.')
-      + `<div class="tip"><strong>Una pregunta clave</strong>¿Quién cargaría las actividades y los avisos? Si nadie mantiene la información, la app deja de ser útil.</div>
-        <details class="example"><summary>Ver roles posibles</summary><p>Estudiantes, docentes y preceptores pueden tener necesidades distintas. Elegí los que correspondan a tu idea y contá qué harían.</p></details>`;
-    case 3: return `<div class="idea-box"><p class="help">¿Necesitás una chispa? Tocá una idea y adaptala. Después explicá para qué sirve.</p>
-        <div class="idea-chips">${functionIdeas.map(idea => `<button type="button" class="idea-chip" data-idea="${escapeHTML(idea)}">+ ${idea}</button>`).join('')}</div></div>`
-      + [1, 2, 3].map(number => `<section class="function-card" aria-labelledby="fn${number}">
-        <div class="function-head" id="fn${number}"><span class="function-badge">0${number}</span>Función ${number}</div>
-        ${field('f' + number, '¿Qué se podrá hacer?', 'Empezá con un verbo: consultar, publicar, entregar…', '', true)}
-        ${field('b' + number, '¿Quién la usaría y qué parte del problema resuelve?', 'Relacioná esta función con una necesidad de tus usuarios.')}</section>`).join('')
-      + `<p class="hint">Elegí tres funciones diferentes. Un color o un logo son decisiones de diseño, pero no explican qué permite hacer la app.</p>`;
-    case 4: return `<p class="label" id="priority-label">¿Qué función desarrollarías primero?</p>
-        <div class="priority-grid" role="radiogroup" aria-labelledby="priority-label" aria-required="true" aria-describedby="error-priority">
-          ${[1, 2, 3].map(number => `<label class="priority-option">
-            <input type="radio" name="priority" data-answer="priority" required aria-describedby="error-priority" value="${number}" ${answers.priority === String(number) ? 'checked' : ''}>
-            <span class="function-badge">0${number}</span><span>${escapeHTML(answers['f' + number].trim() || 'Función ' + number + ' · todavía sin definir')}</span></label>`).join('')}</div>${choiceError('priority')}`
-      + field('reason', '¿Por qué esa función va primero?', '¿Qué necesidad atiende? ¿Es necesaria para las otras funciones? ¿Qué incluiría una primera versión sencilla?')
-      + `<div class="tip"><strong>No hay una única elección correcta</strong>Podés priorizar por el valor para los usuarios, por una dependencia o por lo que te permite probar una idea con menos esfuerzo.</div>`;
-    case 5: return field('scenario', '¿Qué tarea pedirías realizar y a qué tipo de usuarios?', 'Por ejemplo: pedir a estudiantes que encuentren la fecha de una entrega.', 'Podés probar con pantallas dibujadas antes de programar.')
-      + `<div class="row">${numberField('participants', '¿Cuántas personas participarían?', 'De 1 a 50 personas. Usá un número entero.')}${numberField('successes', '¿Cuántas deberían completar la tarea?', 'Tu meta no puede superar la cantidad de participantes.')}</div>`
-      + field('metric', '¿Qué observarías para decidir si funciona bien?', 'Por ejemplo: que encuentren la información sin ayuda, sin errores y en menos de un minuto.', 'Explicá las condiciones que observarías, además de cuántas personas completan la tarea.')
-      + field('improve', '¿Qué harías si la prueba muestra un problema?', '¿Qué registrarías, qué cambiarías y cómo volverías a probarlo?')
-      + `<details class="example"><summary>Ver un ejemplo de prueba</summary><p>Mostrar un prototipo a cinco estudiantes y pedirles que encuentren la próxima entrega. Meta inicial: al menos cuatro lo logran sin ayuda en menos de un minuto. Registrar dónde se traban, mejorar esa pantalla y repetir. Esa meta es una propuesta, no un resultado obtenido.</p></details>`;
-    default: return summaryScreen();
+function refreshFeedback() {
+  const errors = errorsForStep(currentStep, answers);
+  for (const key of stepFields[currentStep] || []) {
+    const message = !editing.has(key) && (touched.has(key) || attempted.has(currentStep)) ? errors[key] || '' : '';
+    const target = $('error-' + key);
+    if (target) { target.textContent = message; target.hidden = !message; }
+    document.querySelectorAll(`[data-answer="${key}"]`).forEach(control => { control.setAttribute('aria-invalid', Boolean(message)); control.setCustomValidity(message); });
+    const count = $('count-' + key);
+    if (count) count.textContent = `${answers[key].length} / ${fieldRules[key].max} caracteres · sin mínimo de palabras`;
+  }
+  const summary = $('validation-summary');
+  if (summary) {
+    const visible = Object.keys(errors).filter(key => attempted.has(currentStep) && !editing.has(key));
+    summary.hidden = !visible.length;
+    summary.textContent = visible.length ? 'Elegí una opción o revisá el campo marcado para continuar.' : '';
   }
 }
-
-function answerItem(label, value) {
-  return `<div class="answer-item"><p class="answer-label">${label}</p>
-    <p>${escapeHTML(value?.trim() || 'Todavía no respondiste este punto.')}</p></div>`;
-}
-
-// El resumen reproduce lo escrito; la conclusión contextualiza sin calificar ni inventar resultados.
-function conclusionScreen() {
-  const completedQuestions = [1, 2, 3, 4, 5].filter(isComplete).length;
-  const personalContext = selectedFunction()
-    ? `<p>Elegiste <strong>“${escapeHTML(selectedFunction())}”</strong> como primer paso de tu app. Esa es una decisión de prioridad: elegir qué construir primero para empezar a resolver una necesidad.</p>`
-    : `<p>Tu punto de partida es una necesidad de la escuela. Para convertirla en una solución, podés seguir definiendo a quién ayudarías y qué sería lo primero que construirías.</p>`;
-  return `<section class="conclusion-card" aria-labelledby="conclusion-title">
-    <p class="eyebrow">La idea que te llevás</p><h3 id="conclusion-title">Desarrollar software empieza antes del código.</h3>
-    ${personalContext}
-    <p>Entender el problema, conocer a los usuarios, diseñar funciones útiles y pensar cómo probarlas son partes del desarrollo de software. No alcanza con que una app se pueda programar: tiene que ayudar a alguien.</p>
-    <p>Una propuesta se pone a prueba con personas. Lo que aprendés al observar cómo la usan te permite cambiar, volver a probar y mejorar. Después de programar, ese proceso continúa.</p>
-    ${completedQuestions < 5 ? '<p class="conclusion-note">Todavía tenés algunas respuestas abiertas. Podés volver a ellas cuando quieras: revisar una idea también es parte de crear.</p>' : '<p class="conclusion-note">Lo que definiste es una propuesta para explorar, no una solución ya comprobada. Tu siguiente paso podría ser dibujar una pantalla y probarla con alguien.</p>'}
-    <div class="process-strip" aria-label="Proceso de desarrollo"><span>Analizar</span><span>Diseñar</span><span>Probar</span><span>Mejorar</span><span>Programar</span></div>
-    </section>`;
-}
-
-function summaryScreen() {
-  const unanswered = steps.map((step, index) => ({ ...step, index })).filter(step => !isComplete(step.index));
-  return `<div class="achievement"><span aria-hidden="true">✳</span><div><strong>${unanswered.length ? 'Tu idea está tomando forma.' : 'Este es tu recorrido.'}</strong><p>Lo que pensaste, reunido en un solo lugar.</p></div></div>
-    ${unanswered.length ? `<details class="example pending-answers"><summary>Te quedan ${unanswered.length} ${unanswered.length === 1 ? 'etapa por explorar' : 'etapas por explorar'}</summary><div class="pending-links">${unanswered.map(step => `<button class="text-button" data-go="${step.index}">${step.name} →</button>`).join('')}</div></details>` : ''}
-    ${hasAnswer('appName') ? `<div class="app-name"><span>Tu app</span><h3>${escapeHTML(answers.appName)}</h3></div>` : ''}
-    <p class="summary-intro">Este resumen muestra tus respuestas. Podés volver a cualquier paso y cambiarlas; se actualizará con lo que escribas.</p>
-    <p class="mission-summary"><strong>Misión elegida:</strong> ${escapeHTML(selectedMission()?.title || 'Todavía no elegiste una misión.')}</p>
-    <section class="answer"><h3>01 · El problema que querés resolver</h3>${answerItem('La dificultad', answers.problem)}${answerItem('Consecuencias y cómo investigarlo', answers.impact)}</section>
-    <section class="answer"><h3>02 · Las personas que usarían tu app</h3>${answerItem('Usuarios y tareas', answers.users)}</section>
-    <section class="answer"><h3>03 · Tus tres funciones</h3>${[1, 2, 3].map(number => `<div class="summary-function">${answerItem('Función ' + number, answers['f' + number])}${answerItem('A quién ayuda y para qué', answers['b' + number])}</div>`).join('')}</section>
-    <section class="answer"><h3>04 · Tu primer paso</h3>${answerItem('La función que elegiste', selectedFunction())}${answerItem('Tu motivo', answers.reason)}</section>
-    <section class="answer"><h3>05 · Cómo comprobarías tu idea</h3>${answerItem('La tarea y los usuarios', answers.scenario)}${answerItem('Participantes y meta', `${answers.successes} de ${answers.participants} personas deberían completar la tarea.`)}${answerItem('Qué observarías y cuál es tu meta', answers.metric)}${answerItem('Qué mejorarías y cómo volverías a probar', answers.improve)}</section>
-    ${conclusionScreen()}
-    <section class="career-card"><p class="eyebrow">¿Te gustó pensar una solución?</p><h3>Esto también se aprende en Desarrollo de Software.</h3>
-      <p>Somos estudiantes de <strong>2.º año de Desarrollo de Software</strong>. Si te dio curiosidad seguir creando, acercate al stand: podemos contarte qué aprendemos, mostrarte proyectos y orientarte para consultar por la inscripción.</p>
-      <p class="career-question">¿Qué te gustaría aprender a crear?</p></section>`;
-}
-
 function render(focus = false) {
-  updateNavigation();
-  const isSummary = currentStep === 6;
-  const step = steps[currentStep];
-  $('view').innerHTML = `<div class="card-head">
-    <p class="step-kicker">${isSummary ? 'Tu resumen personal' : `${currentStep === 0 ? 'Preparación' : `Desafío ${currentStep} / 5`} · ${step.time}`}</p>
-    <h2>${isSummary ? 'Tu idea, de principio a fin.' : step.title}</h2>
-    <p>${isSummary ? 'Un recorrido por tus decisiones y una conclusión para llevarte.' : step.description}</p>
-    </div><div class="card-body">${isSummary ? questionScreen(currentStep) : `<p class="required-note">Todos los campos de esta etapa son obligatorios.</p><div class="validation-summary" id="validation-summary" role="alert" hidden></div><form id="activity-form" novalidate>${questionScreen(currentStep)}</form>`}</div>`;
-  $('actions').innerHTML = isSummary
-    ? '<button class="button secondary" data-go="5">← Volver a mis respuestas</button><button class="button" data-go="0">Volver al inicio</button>'
-    : `<button type="button" class="button secondary" data-go="${currentStep - 1}" ${currentStep === 0 ? 'disabled' : ''}>← Anterior</button>
-      <button type="submit" form="activity-form" class="button">${currentStep === 0 ? 'Empezar el desafío' : currentStep === 5 ? 'Ver mi resumen' : 'Siguiente'} →</button>`;
+  editing.clear(); updateNavigation();
+  const summary = currentStep === 6;
+  document.body.classList.toggle('showing-summary', summary);
+  $('view').innerHTML = `<div class="card-head"><p class="step-kicker">${summary ? 'Tu resumen personal' : currentStep === 0 ? 'Preparación' : `Decisión ${currentStep} / 5`}</p><h2>${summary ? 'Tu idea, de principio a fin.' : steps[currentStep].title}</h2><p>${summary ? 'Una propuesta que cambia con tus elecciones.' : steps[currentStep].description}</p></div>
+  <div class="card-body">${summary ? summaryScreen() : `<p class="required-note">${currentStep === 5 ? 'Elegí una mejora. El comentario es opcional.' : currentStep === 0 ? 'Elegí una misión y un nombre. Podés escribir algo breve.' : 'Elegí una opción. No hay una única respuesta correcta.'}</p><div class="validation-summary" id="validation-summary" role="alert" hidden></div><form id="activity-form" novalidate>${questionScreen()}</form>`}</div>`;
+  $('actions').innerHTML = summary ? '<button class="button secondary" data-go="5">← Volver a mis respuestas</button><button class="button" data-go="0">Volver al inicio</button>' : `<button type="button" class="button secondary" data-go="${currentStep - 1}" ${currentStep === 0 ? 'disabled' : ''}>← Anterior</button><button type="submit" form="activity-form" class="button">${currentStep === 0 ? 'Empezar el desafío' : currentStep === 5 ? 'Ver mi resultado' : 'Siguiente'} →</button>`;
   refreshFeedback();
+  if (!motionPreference.matches) $('view').querySelectorAll('.card-head,.mission-context,.mission-option,.choice-card,.personal-result,.answer,.prototype-preview').forEach((el, index) => el.animate?.([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 380, delay: Math.min(index, 5) * 35, easing: 'ease-out' }));
   if (focus) $('workspace').focus({ preventScroll: true });
 }
-
+function focusField(key) { const control = document.querySelector(`[data-answer="${key}"]`); control?.focus({ preventScroll: true }); control?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' }); }
 function navigate(index) {
   if (!Number.isInteger(index) || index < 0 || index > 6) return;
   const permitted = allowedStep(index, answers);
-  if (index > currentStep && permitted < index) {
-    currentStep = permitted;
-    attemptedSteps.add(currentStep);
-    (stepFields[currentStep] || []).forEach(key => touched.add(key));
-    persist();
-    render();
-    focusField(Object.keys(errorsForStep(currentStep, answers))[0]);
-    notify('Revisá los campos marcados antes de continuar.');
-    return;
-  }
-  currentStep = index;
-  persist();
-  render(true);
-  $('workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  editing.clear();
+  currentStep = permitted;
+  if (permitted < index) attempted.add(currentStep);
+  persist(); render(true);
+  if (permitted < index) { focusField(Object.keys(errorsForStep(currentStep, answers))[0]); notify('Completá esta decisión antes de continuar.'); }
+  else $('workspace').scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
 }
-
-document.addEventListener('click', event => {
-  const focusButton = event.target.closest('[data-focus]');
-  if (focusButton) { focusField(focusButton.dataset.focus); return; }
-  const idea = event.target.closest('[data-idea]');
-  if (idea) {
-    if (!functionIdeas.includes(idea.dataset.idea) || currentStep !== 3) return;
-    if (['f1', 'f2', 'f3'].some(key => answers[key].trim().toLocaleLowerCase('es') === idea.dataset.idea.toLocaleLowerCase('es'))) {
-      notify('Esa idea ya está entre tus funciones. Elegí una diferente.'); return;
-    }
-    const emptyNumber = [1, 2, 3].find(number => !hasAnswer('f' + number));
-    if (!emptyNumber) { notify('Ya tenés tres funciones. Podés editarlas directamente.'); return; }
-    answers['f' + emptyNumber] = idea.dataset.idea;
-    touched.add('f' + emptyNumber);
-    persist();
-    render();
-    $('b' + emptyNumber).focus();
-    notify('Idea agregada. Contá a quién ayuda y para qué.');
-    return;
+function setAnswer(key, value) {
+  const update = changeChoice(answers, key, normalizeText(value)); answers = update.answers;
+  if (update.cleared.length) {
+    update.cleared.forEach(field => { touched.delete(field); attempted.delete(stepFields.findIndex(fields => fields.includes(field))); });
+    notify('Cambiaste el recorrido. Elegí las nuevas opciones en los pasos siguientes; tu nombre y comentario se conservaron.');
   }
-  if (event.target.closest('#random-mission')) {
-    answers.mission = missions[Math.floor(Math.random() * missions.length)].id;
-    touched.add('mission');
-    persist();
-    render();
-    document.querySelector('input[name="mission"]:checked')?.focus();
-    return;
-  }
-  const navigationButton = event.target.closest('[data-go]');
-  if (navigationButton && /^[0-6]$/.test(navigationButton.dataset.go)) navigate(Number(navigationButton.dataset.go));
-});
-
-document.addEventListener('submit', event => {
-  if (event.target.id !== 'activity-form') return;
-  event.preventDefault();
-  navigate(currentStep + 1);
-});
-
+}
 function updateAnswer(event) {
   const key = event.target.dataset.answer;
-  if (!answerKeys.includes(key)) return;
-  answers[key] = normalizeText(event.target.value);
-  touched.add(key);
-  persist();
-  updateNavigation();
-  refreshFeedback();
+  if (!Object.hasOwn(fieldRules, key)) return;
+  if (event.target.type === 'radio' && event.type === 'input') return;
+  setAnswer(key, event.target.value);
+  if (event.target.type === 'radio') touched.add(key); else editing.add(key);
+  persist(); updateNavigation(); refreshFeedback();
 }
 $('view').addEventListener('input', updateAnswer);
 $('view').addEventListener('change', updateAnswer);
 $('view').addEventListener('focusout', event => {
   const key = event.target.dataset.answer;
-  if (!answerKeys.includes(key)) return;
-  if (event.target.type === 'radio') return;
-  const value = normalizeText(event.target.value).trim();
-  answers[key] = value;
-  if (event.target.type !== 'radio') event.target.value = value;
-  touched.add(key);
-  persist();
-  updateNavigation();
-  refreshFeedback();
+  if (!Object.hasOwn(fieldRules, key) || event.target.type === 'radio') return;
+  setAnswer(key, normalizeText(event.target.value).trim()); event.target.value = answers[key];
+  editing.delete(key); touched.add(key); persist(); updateNavigation(); refreshFeedback();
 });
+async function embeddedLogo() {
+  const logo = document.querySelector('.brand-logo'); await logo.decode();
+  const canvas = document.createElement('canvas'); canvas.width = logo.naturalWidth; canvas.height = logo.naturalHeight;
+  const context = canvas.getContext('2d'); if (!context) throw new Error('Logo no disponible');
+  context.drawImage(logo, 0, 0); return canvas.toDataURL('image/png');
+}
+async function saveIdea() {
+  if (firstInvalidStep(answers) !== -1) { navigate(6); return; }
+  const snapshot = { ...answers }; const button = $('save-idea'); if (button.disabled) return;
+  button.disabled = true; button.textContent = 'Preparando tu ficha…';
+  try {
+    const documentHTML = buildIdeaDocument(snapshot, selectedMission().title, await embeddedLogo());
+    const url = URL.createObjectURL(new Blob([documentHTML], { type: 'text/html;charset=utf-8' }));
+    const link = document.createElement('a'); link.href = url; link.download = ideaFilename(snapshot.appName); document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000); notify('Tu ficha incluye todas tus elecciones, el logo y la propuesta. Podés abrirla sin conexión.');
+  } catch { notify('No pudimos preparar la ficha. Intentá de nuevo o usá Imprimir / PDF.'); }
+  finally { button.disabled = false; button.textContent = 'Guardar mi idea ↓'; }
+}
+document.addEventListener('click', event => {
+  if (event.target.closest('#save-idea')) { saveIdea(); return; }
+  if (event.target.closest('#print-idea')) { window.print(); return; }
+  if (event.target.closest('#random-mission')) { setAnswer('mission', randomMission(answers.mission)); touched.add('mission'); persist(); render(); document.querySelector('input[name="mission"]:checked')?.focus(); return; }
+  const button = event.target.closest('[data-go]'); if (button && /^[0-6]$/.test(button.dataset.go)) navigate(Number(button.dataset.go));
+});
+document.addEventListener('submit', event => { if (event.target.id !== 'activity-form') return; event.preventDefault(); navigate(currentStep + 1); });
 $('reset').onclick = () => $('reset-dialog').showModal();
 $('cancel-reset').onclick = () => $('reset-dialog').close();
 $('confirm-reset').onclick = () => {
-  answers = cleanAnswers({});
-  currentStep = 0;
-  touched.clear();
-  attemptedSteps.clear();
-  persist();
-  render();
-  $('reset-dialog').close();
-  $('workspace').focus({ preventScroll: true });
-  $('workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  notify('Tu experiencia está lista para empezar de nuevo.');
+  answers = cleanAnswers({}); currentStep = 0; touched.clear(); editing.clear(); attempted.clear(); persist(); render(true); $('reset-dialog').close();
+  $('workspace').scrollIntoView({ behavior: scrollBehavior(), block: 'start' }); notify('Tu nuevo recorrido está listo.');
 };
-
-render();
-persist();
+function updateKeyboardLayout() {
+  const editingText = document.activeElement?.matches('input:not([type=radio]),textarea');
+  document.documentElement.classList.toggle('keyboard-open', Boolean(editingText && window.visualViewport && window.visualViewport.height < window.innerHeight - 120));
+}
+window.visualViewport?.addEventListener('resize', updateKeyboardLayout);
+document.addEventListener('focusin', updateKeyboardLayout);
+document.addEventListener('focusout', () => requestAnimationFrame(updateKeyboardLayout));
+motionPreference.addEventListener('change', () => { if (motionPreference.matches) document.getAnimations().forEach(animation => animation.cancel()); });
+render(); persist();

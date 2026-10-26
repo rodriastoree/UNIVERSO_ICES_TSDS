@@ -1,49 +1,27 @@
 # Universo ICES · Hackeá la solución
 
-Experiencia individual de 15 a 20 minutos para que estudiantes de 5.º año exploren el desarrollo de software desde su celular. Presentada por estudiantes de 2.º año durante la muestra de la carrera.
+Experiencia individual para el stand de la Tecnicatura Superior en Desarrollo de Software. Mantiene la identidad azul y celeste, el logo transparente, las animaciones adaptables y el uso desde cualquier dispositivo.
 
-## La experiencia
+## Recorrido breve
 
-Cada visitante elige una misión escolar y responde cinco puntos: qué problema resolver, quién usaría su app, tres funciones, cuál desarrollar primero y cómo probar la solución. Hay ideas editables y ejemplos opcionales para ayudar a empezar.
+Una preparación (misión y nombre de app) y cinco decisiones: función principal, personas para la primera versión, funcionamiento, tarea para probar y mejora. La mayoría son opciones; el nombre admite respuestas breves sin mínimo de palabras y al final hay un comentario opcional. No hay perfiles de visitantes, puntuaciones ni respuestas correctas.
 
-Al finalizar ve **su resumen personal**, organizado por los cinco puntos, y una **conclusión general** que conecta sus decisiones con analizar, diseñar, probar y mejorar software. La conclusión retoma la función que eligió como prioridad sin calificar las respuestas ni afirmar que la propuesta ya está validada. Para acceder al resumen hay que completar correctamente todas las etapas. Siempre se puede volver atrás para editar.
+Las misiones tienen pistas propias. La función elegida determina las personas, enfoques, pruebas y mejoras que aparecen después. Hay ocho funciones y trece combinaciones misión/función. Cambiar de función quita las elecciones incompatibles de los pasos siguientes y muestra un aviso; conserva el nombre y el comentario. Cambiar una misión conserva las decisiones si la función sigue disponible.
 
-No es una entrega, una evaluación ni una actividad obligatoria en equipos. El nombre de la app es obligatorio; no se pide nombre personal, cuenta ni inicio de sesión. No hay descarga ni envío de respuestas: el resultado se consulta en pantalla.
+El resultado combina las elecciones en una propuesta: primera versión, prueba con las personas elegidas, qué observar y siguiente mejora. Son sugerencias deterministas para explorar, nunca resultados de una prueba real. El comentario se conserva como aporte propio, no se interpreta automáticamente. El resumen reproduce todas las respuestas y distingue estas de las sugerencias.
 
-## Publicar en Vercel
+## Guardar, imprimir y continuar
 
-Subir los cambios al repositorio e importarlo en Vercel. Usar la raíz del repositorio: vercel.json configura **Other**, ningún Build Command y Output Directory **public**. No hay dependencias, variables de entorno ni base de datos. Referencia: https://vercel.com/docs/builds/configure-a-build
+Guardar mi idea descarga una ficha HTML autónoma con logo incluido, todas las elecciones, comentario, propuesta y boceto. No tiene scripts ni recursos remotos. Imprimir / PDF usa la impresión del navegador. Los botones Editar vuelven a las etapas; se puede avanzar usando las respuestas conservadas.
 
-## Vista previa local
+El recorrido nuevo se guarda solo en localStorage bajo ices-hackea-stand-v3. El borrador v2 no se modifica: si existe, se ofrece Abrir mi recorrido anterior. La copia conservada en public/legacy/index.html sigue permitiendo consultar, terminar, descargar e imprimir ese borrador con las reglas anteriores. El enlace de regreso vuelve al nuevo recorrido. Reiniciar la experiencia actual pide confirmación y solo reinicia v3.
 
-Con Node.js instalado, ejecutar **npm run dev** y abrir http://127.0.0.1:4173. No hace falta npm install. **npm run check** revisa la sintaxis. También puede abrirse public/index.html, aunque se recomienda HTTP para reproducir el guardado de la versión publicada.
+Las opciones se validan contra su misión y función; un borrador alterado vuelve a la primera decisión incompleta. El texto se escapa al mostrarlo y al exportar. No hay backend, analítica, cuentas, dependencias ni envío de respuestas.
 
-## Para la muestra
+## Desarrollo y publicación
 
-Invitar a cada estudiante a abrir el enlace desde su celular. Presentar el desafío y dejar que avance a su ritmo. Los tiempos indicados son orientativos: misión 2 min, problema 3, usuarios 2, funciones 4, prioridad 2 y validación 3; al final, reservar unos minutos para leer el resumen y la conclusión. La invitación a conversar sobre la carrera es opcional y no exige una defensa oral.
+npm run dev abre un servidor en http://127.0.0.1:4173. npm run check revisa sintaxis y npm test comprueba validación, todos los recorridos, cambios de función, recuperación y fichas, además de la compatibilidad del recorrido anterior.
 
-## Guardado y privacidad
+Vercel sirve public según vercel.json, sin compilación. El sitio publicado es https://universo-ices.vercel.app/ y conserva la misma dirección del QR y del video del stand.
 
-Las respuestas y el paso actual se guardan solo en el navegador del dispositivo mediante localStorage. No se transmiten a un servidor, no hay analítica ni un panel de respuestas de otros visitantes. Si el navegador bloquea el guardado, se puede continuar en la pestaña actual. **Reiniciar mi experiencia** pide confirmar antes de borrar las respuestas locales.
-
-## Archivos
-
-- public/index.html: estructura general.
-- public/styles.css: diseño adaptable y controles para pantallas táctiles.
-- public/app.js: misiones, preguntas, resumen, conclusión y guardado local.
-- vercel.json: publicación estática.
-- dev-server.mjs: vista previa local.
-
-El cierre invita a conversar con el equipo del stand. No se incluye enlace de inscripción porque no se proporcionó uno oficial.
-
-## Validaciones
-
-Todos los campos son obligatorios. Los textos tienen mínimos y máximos visibles; se rechazan vacíos, espacios de relleno, respuestas hechas solo de números/símbolos, enlaces sueltos, etiquetas HTML, controles invisibles y repeticiones evidentes. Se aceptan tildes, signos, emojis acompañados por palabras y números dentro de una explicación. Las tres funciones deben ser distintas, también al variar mayúsculas, acentos o puntuación.
-
-Las misiones y prioridades se comprueban contra sus listas de opciones. No se habilita una etapa posterior ni el resumen mientras haya errores previos. Un borrador antiguo o alterado vuelve a la primera etapa que necesita corrección.
-
-En la prueba se piden dos números enteros: entre 1 y 50 participantes, y una meta de personas que completan la tarea entre 1 y ese total. No se aceptan letras, decimales, exponentes, signos ni cantidades fuera de rango. Los errores aparecen junto al campo; al intentar avanzar se muestra un listado y el foco va al primer error.
-
-La aplicación muestra las respuestas como texto escapado y usa una política de contenido que limita scripts y recursos al mismo sitio. No interpreta HTML escrito por los visitantes. Las validaciones comprueban formato y coherencia básica: no determinan si una idea es correcta ni pueden impedir que alguien con herramientas de desarrollo cambie su propia página local. Si en el futuro se agrega un servidor, las reglas también deben ejecutarse allí.
-
-**npm test** ejecuta las pruebas de validación, límites, selecciones, números, funciones repetidas, guardado alterado y navegación. No requiere instalar dependencias.
+public/journey.js contiene las misiones, opciones y propuesta; validation.js comprueba el recorrido; app.js maneja formularios y guardado; experience.js genera resumen, boceto y ficha; sheet-theme.js conserva el formato institucional de la descarga. public/legacy conserva los módulos anteriores y comparte los estilos, el logo y el tema de ficha.

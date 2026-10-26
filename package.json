@@ -6,7 +6,7 @@
   "description": "Actividad interactiva para la muestra de Desarrollo de Software",
   "scripts": {
     "dev": "node dev-server.mjs",
-    "check": "node --check public/app.js && node --check public/validation.js && node --check dev-server.mjs",
+    "check": "node --check public/app.js && node --check public/validation.js && node --check public/experience.js && node --check public/sheet-theme.js && node --check dev-server.mjs && node --check public/journey.js && node --check public/legacy/app.js && node --check public/legacy/validation.js && node --check public/legacy/experience.js",
     "test": "node --test tests/*.test.mjs"
   }
 }
