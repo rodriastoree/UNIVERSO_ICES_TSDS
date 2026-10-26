@@ -40,7 +40,7 @@ Si hay un borrador v3 y aún no existe v4, se recuperan los textos, rol y funci�
 
 Tras una primera carga correcta por HTTPS o localhost, el service worker prepara exclusivamente los recursos estáticos del recorrido actual. No guarda respuestas en la caché ni intercepta servicios externos. El pie confirma cuándo está listo; la primera visita y los recorridos anteriores necesitan conexión. La ficha HTML descargada también es una alternativa sin internet.
 
-Las actualizaciones esperan a que se cierren las pestañas anteriores, para no mezclar módulos de distintas versiones. El pie avisa si hay una versión preparada. **Al cambiar archivos incluidos en la caché, incrementar el identificador `CACHE` de `public/sw.js`.** No llamar a `skipWaiting()` durante una actividad. Si falla la instalación, la actividad sigue funcionando con internet.
+La bienvenida comprueba las actualizaciones y aplica la versión preparada automáticamente si no hay una actividad abierta. El service worker rechaza la activación anticipada si otra pestaña tiene una actividad en curso, incluidas las versiones anteriores. Nunca recarga un formulario mientras se completa. La página `actualizar.html`, que no se guarda en la caché de la actividad, permite recuperar instalaciones anteriores: verifica la versión del servidor y la del controlador antes de volver a la bienvenida. No borra localStorage ni respuestas. El pie ofrece ese enlace cuando corresponde. **Al cambiar archivos incluidos en la caché, incrementar el identificador `CACHE` de `public/sw.js`.** Si falla la instalación, se conserva la versión anterior y se puede reintentar con conexión.
 
 ## Ejecutar y verificar
 

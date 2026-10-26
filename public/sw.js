@@ -1,7 +1,24 @@
-const CACHE = 'ices-activity-v4-20261026-12';
+const CACHE = 'ices-activity-v4-20261026-13';
 // La bienvenida y la animación usan solo recursos locales y funcionan sin conexión.
-const ASSETS = ['./', './index.html', './actividad.html', './welcome.css', './welcome.js', './intro.css', './intro.js', './offline.js', './activity.css', './app.js', './journey.js', './catalog.js', './validation.js', './experience.js', './storage.js', './sheet-theme.js', './ices-logo-web.png', './favicon.svg'];
+const ASSETS = ['./', './index.html', './actividad.html', './welcome.css', './welcome.js', './intro.css', './intro.js', './offline.js', './update-protocol.js', './activity.css', './app.js', './journey.js', './catalog.js', './validation.js', './experience.js', './storage.js', './sheet-theme.js', './ices-logo-web.png', './favicon.svg'];
 const assetURLs = new Set(ASSETS.map(path => new URL(path, self.location).href));
+self.addEventListener('message', event => {
+  const reply = data => event.ports?.[0]?.postMessage(data);
+  if (event.data?.type === 'GET_VERSION') { reply({ version: CACHE }); return; }
+  if (event.data?.type !== 'ACTIVATE_WELCOME_UPDATE') return;
+  event.waitUntil((async () => {
+    const base = new URL('./', self.location);
+    const allowed = new Set(['', 'index.html', 'actualizar.html'].map(path => new URL(path, base).href));
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const busy = windows.some(client => {
+      const url = new URL(client.url); url.search = ''; url.hash = '';
+      return !allowed.has(url.href);
+    });
+    if (busy) { reply({ ok: false, reason: 'activity-open' }); return; }
+    try { await self.skipWaiting(); reply({ ok: true }); }
+    catch { reply({ ok: false, reason: 'activation-failed' }); }
+  })());
+});
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS))));
 self.addEventListener('activate', event => event.waitUntil((async () => {
   const keys = await caches.keys();
