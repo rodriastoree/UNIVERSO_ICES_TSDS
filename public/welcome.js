@@ -21,8 +21,17 @@ if (/^#paso-[1-8]$/.test(location.hash)) {
   const video = document.getElementById('intro-video');
   video.addEventListener('error', () => { document.getElementById('video-error').hidden = false; });
   video.querySelector('source').addEventListener('error', () => { document.getElementById('video-error').hidden = false; });
-  addEventListener('pagehide', () => video.pause());
-  document.addEventListener('visibilitychange', () => { if (document.hidden) video.pause(); });
-  document.querySelectorAll('a[href="./actividad.html"]').forEach(link => link.addEventListener('click', () => video.pause()));
+  let resumeOnReturn = false;
+  const pauseVideo = () => { resumeOnReturn ||= !video.paused; video.pause(); };
+  const resumeVideo = () => {
+    if (!resumeOnReturn || document.hidden) return;
+    resumeOnReturn = false;
+    // Si el navegador bloquea el inicio, los controles permiten reproducir manualmente.
+    video.play().catch(() => {});
+  };
+  addEventListener('pagehide', pauseVideo);
+  addEventListener('pageshow', resumeVideo);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pauseVideo(); else resumeVideo(); });
+  document.querySelectorAll('a[href="./actividad.html"]').forEach(link => link.addEventListener('click', pauseVideo));
   prepareOffline(document.getElementById('offline-state'));
 }

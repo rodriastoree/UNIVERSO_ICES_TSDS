@@ -6,15 +6,15 @@ import { parseSaved, migrateV3 } from '../public/validation.js';
 const script = (await readFile('public/welcome.js', 'utf8')).split('\n').filter(line => !line.startsWith('import ')).join('\n');
 function entry({ current = null, previous = null, hash = '', blocked = false } = {}) {
   const elements = new Map(), events = {}, videoEvents = {}, sourceEvents = {};
-  let writes = 0, redirect = null, pauses = 0, offline = false;
-  const video = { addEventListener: (name, action) => { videoEvents[name] = action; }, querySelector: () => ({ addEventListener: (name, action) => { sourceEvents[name] = action; } }), pause: () => { pauses++; } };
+  let writes = 0, redirect = null, pauses = 0, plays = 0, offline = false;
+  const video = { paused: false, addEventListener: (name, action) => { videoEvents[name] = action; }, querySelector: () => ({ addEventListener: (name, action) => { sourceEvents[name] = action; } }), pause: () => { video.paused = true; pauses++; }, play: () => { video.paused = false; plays++; return Promise.resolve(); } };
   const document = { hidden: false, getElementById: id => { if (id === 'intro-video') return video; if (!elements.has(id)) elements.set(id, { hidden: true, textContent: '' }); return elements.get(id); }, querySelectorAll: () => [], addEventListener: (name, action) => { events[name] = action; } };
   vm.runInNewContext(script, { document, URL, parseSaved, migrateV3,
     location: { hash, href: 'https://universo-ices.vercel.app/' + hash, replace: value => { redirect = value; } },
     localStorage: { getItem: key => { if (blocked) throw new Error('Bloqueado'); return key.endsWith('v4') ? current : previous; }, setItem: () => { writes++; } },
     addEventListener: (name, action) => { events[name] = action; }, prepareOffline: () => { offline = true; }
   });
-  return { elements, events, videoEvents, sourceEvents, document, redirect, get pauses() { return pauses; }, get writes() { return writes; }, get offline() { return offline; } };
+  return { elements, events, videoEvents, sourceEvents, document, video, redirect, get pauses() { return pauses; }, get plays() { return plays; }, get writes() { return writes; }, get offline() { return offline; } };
 }
 test('una visita nueva ofrece comenzar, sin escribir respuestas ni entrar automáticamente', () => {
   const result = entry();
@@ -43,14 +43,18 @@ test('el video se puede abandonar y los errores ofrecen continuar con el desafí
   const result = entry();
   result.events.pagehide(); assert.equal(result.pauses, 1);
   result.document.hidden = true; result.events.visibilitychange(); assert.equal(result.pauses, 2);
+  result.document.hidden = false; result.events.visibilitychange(); assert.equal(result.plays, 1);
+  result.video.pause();
+  result.document.hidden = true; result.events.visibilitychange();
+  result.document.hidden = false; result.events.visibilitychange(); assert.equal(result.plays, 1, 'respeta la pausa manual');
   result.videoEvents.error(); assert.equal(result.elements.get('video-error').hidden, false);
 });
 test('la entrada y la actividad son documentos distintos, con video opcional y alternativa textual', async () => {
   const [index, activity] = await Promise.all(['public/index.html', 'public/actividad.html'].map(path => readFile(path, 'utf8')));
   assert.match(index, /href="\.\/actividad.html"/); assert.doesNotMatch(index, /id="activity-form"|id="workspace"/);
-  assert.match(index, /preload="none"/); assert.doesNotMatch(index, /\sautoplay(?:\s|>|=)/);
+  for (const attribute of ['autoplay', 'muted', 'loop', 'playsinline', 'controls']) assert.match(index, new RegExp(`<video[^>]*\\s${attribute}(?:\\s|>)`));
   assert.match(index, /Leer lo que presenta el video/); assert.match(activity, /src="\.\/app.js"/);
-  assert.match(index, /desarrollo-software\.mp4/); assert.match(index, /20 segundos/);
+  assert.match(index, /desarrollo-software\.mp4/); assert.doesNotMatch(index, /Desarrollo de Software en 20 segundos/);
   assert.doesNotMatch(index, /video-stand|Desde nuestro stand|video del stand|24 segundos/);
   assert.match(activity, /Volver a la bienvenida/);
 });

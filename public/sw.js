@@ -1,4 +1,4 @@
-const CACHE = 'ices-activity-v4-20261026-6';
+const CACHE = 'ices-activity-v4-20261026-7';
 // El video se carga solo cuando se reproduce: no forma parte de la descarga sin conexión.
 const ASSETS = ['./', './index.html', './actividad.html', './welcome.css', './welcome.js', './offline.js', './activity.css', './app.js', './journey.js', './catalog.js', './validation.js', './experience.js', './storage.js', './sheet-theme.js', './ices-logo-web.png', './media/desarrollo-software-poster.jpg', './favicon.svg'];
 const assetURLs = new Set(ASSETS.map(path => new URL(path, self.location).href));
