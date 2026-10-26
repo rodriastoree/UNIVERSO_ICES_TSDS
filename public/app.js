@@ -27,16 +27,17 @@ function showConflict() {
   $('saved').textContent = 'Hay cambios en otra pestaña';
 }
 function persist(force = false) {
-  if (conflict && !force) return;
+  if (conflict && !force) return { ok: false, conflict: true };
   const result = store.write(JSON.stringify({ ...answers, _step: currentStep, _schema: 4 }), force);
-  if (result.conflict) { showConflict(); return; }
+  if (result.conflict) { showConflict(); return result; }
   $('storage-warning').hidden = result.ok;
   const message = result.ok ? 'Guardado en este navegador' : 'Guardado no disponible';
   if ($('saved').textContent !== message) $('saved').textContent = message;
+  return result;
 }
 function field(key, label, help = '', short = false) {
   const r = fieldRules[key], numeric = r.type === 'number';
-  const attrs = `data-answer="${key}" id="${key}" ${r.optional ? '' : 'required'} aria-invalid="false" aria-describedby="help-${key} error-${key}" maxlength="${numeric ? 2 : r.max}" ${numeric ? 'inputmode="numeric" pattern="[0-9]*"' : ''}`;
+  const attrs = `data-answer="${key}" id="${key}" ${r.optional ? '' : 'required'} aria-invalid="false" aria-describedby="help-${key} error-${key}" maxlength="${numeric ? 32 : r.max}" ${numeric ? 'inputmode="numeric" pattern="[0-9]{1,2}"' : ''}`;
   return `<div class="field"><label for="${key}">${escape(label)}${r.optional ? ' <span>(opcional)</span>' : ' *'}</label><p class="help" id="help-${key}">${escape(help)} ${numeric ? 'Enteros de 1 a 20.' : `Hasta ${r.max} caracteres. Sin mínimo de palabras. No incluyas datos personales.`}</p>${short || numeric ? `<input type="text" ${attrs} value="${escape(answers[key])}">` : `<textarea ${attrs} rows="3">${escape(answers[key])}</textarea>`}<p class="field-error" id="error-${key}" hidden></p></div>`;
 }
 function cards(key, title, options, multiple = false) {
@@ -188,8 +189,11 @@ $('reset').onclick = () => $('reset-dialog').showModal();
 $('cancel-reset').onclick = () => $('reset-dialog').close();
 $('confirm-reset').onclick = () => {
   answers = cleanAnswers({}); currentStep = 0; touched.clear(); editing.clear(); attempted.clear();
-  persist(); $('reset-dialog').close(); render(true); history.pushState({ icesStep: 0 }, '', '#paso-1');
-  $('workspace').scrollIntoView({ behavior: scrollBehavior(), block: 'start' }); notify('Tu nuevo recorrido está listo. Los recorridos anteriores se conservaron.');
+  conflict = false; $('tab-conflict').hidden = true;
+  const result = persist(true);
+  $('reset-dialog').close(); render(true); history.pushState({ icesStep: 0 }, '', '#paso-1');
+  $('workspace').scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+  notify(result.ok ? 'Tu nuevo recorrido está listo. Los recorridos anteriores se conservaron.' : 'Reiniciamos esta pestaña, pero no pudimos guardar el reinicio. Al recargar podría volver el borrador anterior.');
 };
 $('close-copy').onclick = () => $('copy-dialog').close();
 $('load-other').onclick = () => {
@@ -199,7 +203,11 @@ $('load-other').onclick = () => {
   conflict = false; $('tab-conflict').hidden = true; touched.clear(); attempted.clear(); render(true);
   history.replaceState({ icesStep: currentStep }, '', `#paso-${currentStep + 1}`); persist(); notify('Cargamos el recorrido guardado en la otra pestaña.');
 };
-$('keep-mine').onclick = () => { conflict = false; $('tab-conflict').hidden = true; persist(true); notify('Guardamos las respuestas de esta pestaña.'); };
+$('keep-mine').onclick = () => {
+  const result = persist(true);
+  if (result.ok) { conflict = false; $('tab-conflict').hidden = true; notify('Guardamos las respuestas de esta pestaña.'); }
+  else notify('No pudimos guardar estas respuestas. Podés reintentar o cargar el otro recorrido.');
+};
 addEventListener('storage', event => { if (event.storageArea === window.localStorage && (event.key === store.key || event.key === null) && event.newValue !== store.lastRaw) showConflict(); });
 addEventListener('popstate', event => { if (Number.isInteger(event.state?.icesStep)) navigate(event.state.icesStep, 'none'); });
 addEventListener('beforeprint', () => { printDetails = [...document.querySelectorAll('.summary-detail')].map(el => [el, el.open]); printDetails.forEach(([el]) => { el.open = true; }); });
