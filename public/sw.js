@@ -1,4 +1,4 @@
-const CACHE = 'ices-activity-v4-20261026-2';
+const CACHE = 'ices-activity-v4-20261026-3';
 const ASSETS = ['./', './index.html', './activity.css', './app.js', './journey.js', './catalog.js', './validation.js', './experience.js', './storage.js', './sheet-theme.js', './ices-logo-web.png', './favicon.svg'];
 const assetURLs = new Set(ASSETS.map(path => new URL(path, self.location).href));
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS))));
