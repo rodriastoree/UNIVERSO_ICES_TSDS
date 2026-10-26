@@ -25,3 +25,9 @@ npm run dev abre un servidor en http://127.0.0.1:4173. npm run check revisa sint
 Vercel sirve public según vercel.json, sin compilación. El sitio publicado es https://universo-ices.vercel.app/ y conserva la misma dirección del QR y del video del stand.
 
 public/journey.js contiene las misiones, opciones y propuesta; validation.js comprueba el recorrido; app.js maneja formularios y guardado; experience.js genera resumen, boceto y ficha; sheet-theme.js conserva el formato institucional de la descarga. public/legacy conserva los módulos anteriores y comparte los estilos, el logo y el tema de ficha.
+
+## Una situación propia
+
+Al elegir **Tengo otra idea** aparece un campo obligatorio **¿De qué situación querés partir?**, con hasta 800 caracteres y sin mínimo de palabras o de longitud. Solo se exige en esa misión. La descripción se guarda en el borrador v3, acompaña los pasos siguientes y aparece en el resultado, el resumen, la impresión y la ficha HTML autónoma. Se muestra como texto escapado, sin interpretación automática.
+
+Si se cambia a una misión predeterminada, el campo se oculta y deja de ser obligatorio; su texto se conserva por si se vuelve a la idea propia, pero no se incluye en el resultado de otras misiones. Los borradores v3 anteriores siguen funcionando: si la misión era propia y no había una situación, vuelven a la preparación para completarla, conservando sus elecciones.

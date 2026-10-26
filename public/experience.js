@@ -17,6 +17,7 @@ export function answerRows(answers) {
   return [
     { label: 'Nombre de tu app', value: answers.appName, step: 0 },
     { label: 'Misión', value: missions.find(m => m.id === answers.mission)?.title || '', step: 0 },
+    ...(answers.mission === 'propia' ? [{ label: 'Tu situación', value: answers.customSituation, step: 0 }] : []),
     ...choiceFields.map((key, index) => { const option = selectedOption(key, answers);
       return { label: prompts[key], value: option ? `${option.title}. ${option.detail}` : '', step: index + 1 }; }),
     { label: 'Tu toque personal (opcional)', value: answers.note.trim() || 'No agregaste un comentario.', step: 5 }
@@ -40,7 +41,7 @@ export function proposalMarkup(answers) {
   const item = (title, text) => `<div class="answer-item"><h4>${title}</h4><p>${escapeHTML(text)}</p></div>`;
   return `<section class="conclusion-card personal-result" aria-labelledby="result-title"><p class="eyebrow">Propuesta según tus decisiones</p>
     <h3 id="result-title">${escapeHTML(proposal.title)}</h3><p class="result-lead">${escapeHTML(proposal.concept)}</p>
-    ${item('Tu primera versión', proposal.firstVersion)}${item('Una prueba para empezar', proposal.test)}${item('Qué observar', proposal.observe)}${item('Tu siguiente mejora', proposal.improve)}
+    ${proposal.situation ? item('La situación de la que partís', proposal.situation) : ''}${item('Tu primera versión', proposal.firstVersion)}${item('Una prueba para empezar', proposal.test)}${item('Qué observar', proposal.observe)}${item('Tu siguiente mejora', proposal.improve)}
     <p class="conclusion-note">Estas sugerencias se arman a partir de tus elecciones. No son una evaluación ni resultados de una prueba realizada. Tu comentario personal se conserva en el resumen y podés usarlo para adaptar la propuesta.</p>
     <div class="process-strip" aria-label="Proceso de desarrollo"><span>Analizar</span><span>Diseñar</span><span>Probar</span><span>Mejorar</span><span>Programar</span></div></section>`;
 }

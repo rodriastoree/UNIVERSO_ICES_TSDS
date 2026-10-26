@@ -4,7 +4,7 @@ import { missions, branches, getOptions, changeChoice, proposalFor, choiceFields
 import { cleanAnswers, validateField, errorsForStep, firstInvalidStep, allowedStep, parseSaved } from '../public/validation.js';
 import { answerRows, prototypeMarkup, buildIdeaDocument } from '../public/experience.js';
 const logo = 'data:image/png;base64,iVBORw0KGgo=';
-const valid = { ...cleanAnswers({}), appName: 'Mi app', mission: 'entregas', mainFunction: 'calendar', audience: 'reader', mode: 'mode-0', test: 'test-0', improve: 'improve-0', note: '' };
+const valid = { ...cleanAnswers({}), appName: 'Mi app', customSituation: 'Quiero organizar las actividades de mi barrio.', mission: 'entregas', mainFunction: 'calendar', audience: 'reader', mode: 'mode-0', test: 'test-0', improve: 'improve-0', note: '' };
 test('Todas las combinaciones de los 13 recorridos son válidas y producen propuestas distintas', () => {
   let count = 0;
   for (const mission of missions) for (const mainFunction of mission.functions) {

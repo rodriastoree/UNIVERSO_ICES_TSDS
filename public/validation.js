@@ -3,6 +3,7 @@ export const missionIds = missions.map(m => m.id);
 export const fieldRules = {
   mission: { label: 'Misión', type: 'choice' },
   appName: { label: 'Nombre de tu app', type: 'text', max: 60, singleLine: true },
+  customSituation: { label: 'Tu situación', type: 'text', max: 800 },
   mainFunction: { label: 'Función principal', type: 'choice' },
   audience: { label: 'Personas', type: 'choice' },
   mode: { label: 'Funcionamiento', type: 'choice' },
@@ -10,12 +11,14 @@ export const fieldRules = {
   improve: { label: 'Mejora', type: 'choice' },
   note: { label: 'Tu toque personal', type: 'text', max: 800, optional: true }
 };
-export const stepFields = [['mission', 'appName'], ['mainFunction'], ['audience'], ['mode'], ['test'], ['improve', 'note']];
+export const stepFields = [['mission', 'customSituation', 'appName'], ['mainFunction'], ['audience'], ['mode'], ['test'], ['improve', 'note']];
 export const normalizeText = value => typeof value === 'string'
   ? value.normalize('NFC').replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ') : '';
 export function validateField(key, value, answers = {}) {
   const rule = fieldRules[key];
   if (!rule) return 'Campo no reconocido.';
+  // La situación se exige solo en la misión propia; se conserva al cambiar de misión.
+  if (key === 'customSituation' && answers.mission !== 'propia') return '';
   if (typeof value !== 'string') return 'Completá este campo con un valor válido.';
   const text = normalizeText(value).trim();
   if (!text) return rule.optional ? '' : rule.type === 'choice' ? 'Elegí una opción para continuar.' : 'Completá este campo para continuar.';

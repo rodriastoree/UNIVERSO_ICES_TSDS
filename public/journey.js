@@ -4,7 +4,7 @@ export const missions = [
   { id: 'entregas', icon: '01', title: '¿Era para hoy?', description: 'Las fechas y los trabajos se mezclan entre mensajes y cuadernos.', hint: 'Pensá en una entrega que cambió de fecha: ¿qué ayudaría a encontrar la información actualizada?', functions: ['calendar', 'reminders', 'submissions'] },
   { id: 'avisos', icon: '02', title: 'El aviso que nadie vio', description: 'Un cambio de aula o un aviso importante no llega a todas las personas.', hint: 'Imaginá un cambio de aula a último momento. ¿Cómo distinguir un aviso oficial y saber a quién llegó?', functions: ['official', 'confirmation', 'changes'] },
   { id: 'actividades', icon: '03', title: 'Todo pasa a la vez', description: 'Pruebas, eventos y actividades se superponen y cuesta organizarse.', hint: 'Imaginá dos actividades en el mismo horario: ¿necesitás verlas, detectar el cruce o coordinar la participación?', functions: ['calendar', 'conflicts', 'registration'] },
-  { id: 'propia', icon: '↗', title: 'Tengo otra idea', description: 'Partí de otra situación y adaptá una de las funciones a tu propuesta.', hint: 'Elegí la función que más se acerque a tu idea. Al final podés agregar un detalle para hacerla tuya.', functions: ['calendar', 'reminders', 'official', 'registration'] }
+  { id: 'propia', icon: '↗', title: 'Tengo otra idea', description: 'Contá tu propia situación y adaptá una de las funciones a tu propuesta.', hint: 'Elegí la función que más se acerque a tu idea. Al final podés agregar un detalle para hacerla tuya.', functions: ['calendar', 'reminders', 'official', 'registration'] }
 ];
 const audiences = (reader, creator, coordinator) => [
   option('reader', reader, 'Una primera versión pensada para quien consulta o participa.'),
@@ -104,6 +104,7 @@ export function changeChoice(before, key, value) {
   return result;
 }
 export function proposalFor(answers) {
+  if (answers.mission === 'propia' && (typeof answers.customSituation !== 'string' || !answers.customSituation.trim())) return null;
   const fn = selectedOption('mainFunction', answers);
   const audience = selectedOption('audience', answers);
   const mode = selectedOption('mode', answers);
@@ -111,6 +112,7 @@ export function proposalFor(answers) {
   const improve = selectedOption('improve', answers);
   if (![fn, audience, mode, test, improve].every(Boolean)) return null;
   return {
+    situation: answers.mission === 'propia' ? answers.customSituation.trim() : '',
     title: `${fn.title}: ${mode.title.toLocaleLowerCase('es')}`,
     concept: `${answers.appName.trim()} propone ${fn.title.toLocaleLowerCase('es')} para ${audience.title.toLocaleLowerCase('es')}. La primera versión se enfocaría en: ${mode.detail}`,
     firstVersion: `${mode.title}. ${mode.detail} Antes de agregar más funciones, dibujá una pantalla con esa acción principal.`,

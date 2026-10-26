@@ -44,6 +44,11 @@ function textField(key, label, placeholder, short = false) {
     ${short ? `<input type="text" ${attrs} value="${escape(answers[key])}" placeholder="${escape(placeholder)}">` : `<textarea ${attrs} placeholder="${escape(placeholder)}">${escape(answers[key])}</textarea>`}
     <p class="field-count" id="count-${key}">${answers[key].length} / ${rule.max} caracteres · sin mínimo de palabras</p><p class="field-error" id="error-${key}" hidden></p></div>`;
 }
+function customSituationField() {
+  return answers.mission === 'propia'
+    ? textField('customSituation', '¿De qué situación querés partir?', 'Contá el problema o la situación que te gustaría mejorar. Puede ser de tu escuela, tu barrio o tu vida cotidiana.')
+    : '';
+}
 function choiceGroup(key, title, options, mission = false) {
   return `<fieldset class="choice-fieldset"><legend>${escape(title)}</legend><div class="${mission ? 'mission-grid' : 'priority-grid'}" aria-describedby="error-${key}">
   ${options.map((o, i) => `<label class="${mission ? 'mission-option' : 'priority-option choice-card'}"><input type="radio" data-answer="${key}" name="${key}" value="${escape(o.id)}" ${answers[key] === o.id ? 'checked' : ''} required aria-describedby="error-${key}">
@@ -51,12 +56,12 @@ function choiceGroup(key, title, options, mission = false) {
 }
 function context() {
   const fn = selectedOption('mainFunction', answers);
-  return `<div class="mission-context"><strong>${escape(fn ? 'Tu función: ' + fn.title : 'Tu misión: ' + selectedMission().title)}</strong><span>${escape(currentStep === 1 ? selectedMission().hint : fn.detail)}</span>${currentStep > 2 ? `<span>Primera versión para: ${escape(selectedOption('audience', answers)?.title || '')}</span>` : ''}</div>`;
+  return `<div class="mission-context"><strong>${escape(fn ? 'Tu función: ' + fn.title : 'Tu misión: ' + selectedMission().title)}</strong><span>${escape(currentStep === 1 ? selectedMission().hint : fn.detail)}</span>${answers.mission === 'propia' ? `<span>Tu situación: ${escape(answers.customSituation)}</span>` : ''}${currentStep > 2 ? `<span>Primera versión para: ${escape(selectedOption('audience', answers)?.title || '')}</span>` : ''}</div>`;
 }
 function questionScreen() {
   if (currentStep === 0) return `${legacyAvailable ? '<div class="legacy-notice"><strong>Tu recorrido anterior está conservado.</strong><p>Podés abrir tus respuestas previas y guardarlas o imprimirlas.</p><a class="text-button" href="./legacy/index.html">Abrir mi recorrido anterior →</a></div>' : ''}
     <div class="mission"><p class="eyebrow">Un problema, muchas soluciones</p><p>Elegí una misión, una función principal y las decisiones siguientes para imaginar tu app. Al final vas a recibir una propuesta según tus elecciones, sin puntajes ni respuestas correctas.</p></div>
-    ${choiceGroup('mission', 'Elegí por dónde empezar', missions, true)}<button class="text-button random" type="button" id="random-mission">Elegir una misión al azar ↻</button>
+    ${choiceGroup('mission', 'Elegí por dónde empezar', missions, true)}<div id="custom-situation-slot">${customSituationField()}</div><button class="text-button random" type="button" id="random-mission">Elegir una misión al azar ↻</button>
     ${textField('appName', 'Nombre de tu app', 'Inventá un nombre, sin datos personales.', true)}
     <details class="example"><summary>¿Cómo es la experiencia?</summary><p>La mayoría de las respuestas son de elección. Podés volver atrás y cambiar de idea. Al finalizar, guardá o imprimí el resumen completo.</p><p>Tus respuestas quedan en este navegador y no se envían a nadie. No necesitás una cuenta.</p></details>`;
   const key = choiceFields[currentStep - 1];
@@ -111,7 +116,7 @@ function render(focus = false) {
   const summary = currentStep === 6;
   document.body.classList.toggle('showing-summary', summary);
   $('view').innerHTML = `<div class="card-head"><p class="step-kicker">${summary ? 'Tu resumen personal' : currentStep === 0 ? 'Preparación' : `Decisión ${currentStep} / 5`}</p><h2>${summary ? 'Tu idea, de principio a fin.' : steps[currentStep].title}</h2><p>${summary ? 'Una propuesta que cambia con tus elecciones.' : steps[currentStep].description}</p></div>
-  <div class="card-body">${summary ? summaryScreen() : `<p class="required-note">${currentStep === 5 ? 'Elegí una mejora. El comentario es opcional.' : currentStep === 0 ? 'Elegí una misión y un nombre. Podés escribir algo breve.' : 'Elegí una opción. No hay una única respuesta correcta.'}</p><div class="validation-summary" id="validation-summary" role="alert" hidden></div><form id="activity-form" novalidate>${questionScreen()}</form>`}</div>`;
+  <div class="card-body">${summary ? summaryScreen() : `<p class="required-note">${currentStep === 5 ? 'Elegí una mejora. El comentario es opcional.' : currentStep === 0 ? 'Elegí una misión y un nombre. Si tenés otra idea, contá tu situación. Podés escribir algo breve.' : 'Elegí una opción. No hay una única respuesta correcta.'}</p><div class="validation-summary" id="validation-summary" role="alert" hidden></div><form id="activity-form" novalidate>${questionScreen()}</form>`}</div>`;
   $('actions').innerHTML = summary ? '<button class="button secondary" data-go="5">← Volver a mis respuestas</button><button class="button" data-go="0">Volver al inicio</button>' : `<button type="button" class="button secondary" data-go="${currentStep - 1}" ${currentStep === 0 ? 'disabled' : ''}>← Anterior</button><button type="submit" form="activity-form" class="button">${currentStep === 0 ? 'Empezar el desafío' : currentStep === 5 ? 'Ver mi resultado' : 'Siguiente'} →</button>`;
   refreshFeedback();
   if (!motionPreference.matches) $('view').querySelectorAll('.card-head,.mission-context,.mission-option,.choice-card,.personal-result,.answer,.prototype-preview').forEach((el, index) => el.animate?.([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 380, delay: Math.min(index, 5) * 35, easing: 'ease-out' }));
@@ -140,6 +145,9 @@ function updateAnswer(event) {
   if (!Object.hasOwn(fieldRules, key)) return;
   if (event.target.type === 'radio' && event.type === 'input') return;
   setAnswer(key, event.target.value);
+  if (key === 'mission' && $('custom-situation-slot')) {
+    $('custom-situation-slot').innerHTML = customSituationField();
+  }
   if (event.target.type === 'radio') touched.add(key); else editing.add(key);
   persist(); updateNavigation(); refreshFeedback();
 }
