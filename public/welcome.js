@@ -18,7 +18,7 @@ if (/^#paso-[1-8]$/.test(location.hash)) {
   refreshEntry();
   addEventListener('pageshow', refreshEntry);
   addEventListener('storage', event => { if (event.key === null || ['ices-hackea-stand-v4', 'ices-hackea-stand-v3'].includes(event.key)) refreshEntry(); });
-  const video = document.getElementById('stand-video');
+  const video = document.getElementById('intro-video');
   video.addEventListener('error', () => { document.getElementById('video-error').hidden = false; });
   video.querySelector('source').addEventListener('error', () => { document.getElementById('video-error').hidden = false; });
   addEventListener('pagehide', () => video.pause());

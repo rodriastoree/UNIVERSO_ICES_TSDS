@@ -8,7 +8,7 @@ function entry({ current = null, previous = null, hash = '', blocked = false } =
   const elements = new Map(), events = {}, videoEvents = {}, sourceEvents = {};
   let writes = 0, redirect = null, pauses = 0, offline = false;
   const video = { addEventListener: (name, action) => { videoEvents[name] = action; }, querySelector: () => ({ addEventListener: (name, action) => { sourceEvents[name] = action; } }), pause: () => { pauses++; } };
-  const document = { hidden: false, getElementById: id => { if (id === 'stand-video') return video; if (!elements.has(id)) elements.set(id, { hidden: true, textContent: '' }); return elements.get(id); }, querySelectorAll: () => [], addEventListener: (name, action) => { events[name] = action; } };
+  const document = { hidden: false, getElementById: id => { if (id === 'intro-video') return video; if (!elements.has(id)) elements.set(id, { hidden: true, textContent: '' }); return elements.get(id); }, querySelectorAll: () => [], addEventListener: (name, action) => { events[name] = action; } };
   vm.runInNewContext(script, { document, URL, parseSaved, migrateV3,
     location: { hash, href: 'https://universo-ices.vercel.app/' + hash, replace: value => { redirect = value; } },
     localStorage: { getItem: key => { if (blocked) throw new Error('Bloqueado'); return key.endsWith('v4') ? current : previous; }, setItem: () => { writes++; } },
@@ -37,7 +37,7 @@ test('almacenamiento bloqueado, borrador roto o vacío no impiden comenzar', () 
 });
 test('los enlaces anteriores con etapas van a la actividad; otros fragmentos permanecen en la bienvenida', () => {
   for (let n = 1; n <= 8; n++) assert.equal(entry({ hash: `#paso-${n}` }).redirect, `https://universo-ices.vercel.app/actividad.html#paso-${n}`);
-  for (const hash of ['', '#video-del-stand', '#el-desafio', '#paso-99', '#javascript:alert(1)']) assert.equal(entry({ hash }).redirect, null);
+  for (const hash of ['', '#video-idea', '#el-desafio', '#paso-99', '#javascript:alert(1)']) assert.equal(entry({ hash }).redirect, null);
 });
 test('el video se puede abandonar y los errores ofrecen continuar con el desafío', () => {
   const result = entry();
@@ -50,5 +50,7 @@ test('la entrada y la actividad son documentos distintos, con video opcional y a
   assert.match(index, /href="\.\/actividad.html"/); assert.doesNotMatch(index, /id="activity-form"|id="workspace"/);
   assert.match(index, /preload="none"/); assert.doesNotMatch(index, /\sautoplay(?:\s|>|=)/);
   assert.match(index, /Leer lo que presenta el video/); assert.match(activity, /src="\.\/app.js"/);
+  assert.match(index, /desarrollo-software\.mp4/); assert.match(index, /20 segundos/);
+  assert.doesNotMatch(index, /video-stand|Desde nuestro stand|video del stand|24 segundos/);
   assert.match(activity, /Volver a la bienvenida/);
 });
