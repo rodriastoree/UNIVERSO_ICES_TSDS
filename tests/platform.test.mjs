@@ -23,6 +23,13 @@ test('el servidor entrega imágenes con tipo correcto, errores comprensibles y c
   const missing = await fetch(url + '/no-existe'); assert.equal(missing.status, 404); assert.match(await missing.text(), /No encontramos/);
   assert.equal((await fetch(url, { method: 'POST' })).status, 405);
   assert.equal((await fetch(url + '/%2f..%2fpackage.json')).status, 403);
+  const video = await fetch(url + '/media/video-stand.mp4', { headers: { Range: 'bytes=0-31' } });
+  assert.equal(video.status, 206); assert.equal(video.headers.get('content-type'), 'video/mp4');
+  assert.match(video.headers.get('content-range'), /^bytes 0-31\/\d+$/); assert.equal((await video.arrayBuffer()).byteLength, 32);
+  const invalidRange = await fetch(url + '/media/video-stand.mp4', { headers: { Range: 'bytes=999999999-' } });
+  assert.equal(invalidRange.status, 416);
+  const videoHead = await fetch(url + '/media/video-stand.mp4', { method: 'HEAD' });
+  assert.equal(videoHead.status, 200); assert.equal(Number(videoHead.headers.get('content-length')), 4503853);
 });
 test('la actividad en caché sigue sirviendo recursos cuando la red no responde', async () => {
   const handlers = {}, cachesMap = new Map([['otro-sitio', new Map()], ['ices-activity-antiguo', new Map()]]);
@@ -40,7 +47,7 @@ test('la actividad en caché sigue sirviendo recursos cuando la red no responde'
   handlers.install({ waitUntil: promise => { completion = promise; } }); await completion;
   handlers.activate({ waitUntil: promise => { completion = promise; } }); await completion;
   assert.equal(claimed, true); assert.equal(cachesMap.has('otro-sitio'), true); assert.equal(cachesMap.has('ices-activity-antiguo'), false);
-  for (const path of ['/', '/index.html', '/app.js', '/activity.css', '/ices-logo-web.png']) {
+  for (const path of ['/', '/index.html', '/actividad.html', '/welcome.js', '/welcome.css', '/app.js', '/activity.css', '/ices-logo-web.png', '/media/video-stand-poster.jpg']) {
     let response;
     handlers.fetch({ request: { method: 'GET', url: 'https://actividad.test' + path }, respondWith: promise => { response = promise; } });
     assert.ok((await response).length > 0, path);
@@ -48,4 +55,6 @@ test('la actividad en caché sigue sirviendo recursos cuando la red no responde'
   let intercepted = false;
   handlers.fetch({ request: { method: 'GET', url: 'https://externo.test/otro' }, respondWith: () => { intercepted = true; } });
   assert.equal(intercepted, false);
+  handlers.fetch({ request: { method: 'GET', url: 'https://actividad.test/media/video-stand.mp4' }, respondWith: () => { intercepted = true; } });
+  assert.equal(intercepted, false, 'el video no se descarga ni se intercepta como parte de la caché de la actividad');
 });

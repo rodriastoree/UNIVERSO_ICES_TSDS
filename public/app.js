@@ -2,6 +2,7 @@ import { fieldRules, stepFields, isActive, errorsForStep, firstInvalidStep, allo
 import { missions, steps, SUMMARY_STEP, getOptions, selectedOption, functionTitle, problemFor, audienceFor, changeChoice } from './journey.js';
 import { escapeHTML as escape, randomMission, ideaFilename, ideaText, answerRows, prototypeMarkup, proposalMarkup, careerMarkup, buildIdeaDocument } from './experience.js';
 import { DraftStore } from './storage.js';
+import { prepareOffline } from './offline.js';
 const $ = id => document.getElementById(id);
 const store = new DraftStore('ices-hackea-stand-v4', () => window.localStorage);
 let answers = cleanAnswers({}), currentStep = 0, previousAvailable = false, legacyAvailable = false;
@@ -212,14 +213,4 @@ const wideLayout = matchMedia('(min-width:761px)');
 document.querySelector('.step-panel').open = wideLayout.matches;
 wideLayout.addEventListener('change', event => { document.querySelector('.step-panel').open = event.matches; });
 history.replaceState({ icesStep: currentStep }, '', `#paso-${currentStep + 1}`); render(); persist();
-async function prepareOffline() {
-  if (!('serviceWorker' in navigator)) { $('offline-state').textContent = 'Para usar la actividad necesitás conexión. La ficha descargada funciona sin internet.'; return; }
-  try {
-    const registration = await navigator.serviceWorker.register('./sw.js');
-    const ready = () => { $('offline-state').textContent = 'Actividad preparada para seguir en este navegador sin conexión. Las versiones anteriores requieren internet.'; };
-    navigator.serviceWorker.ready.then(ready);
-    const updated = () => { if (registration.waiting) $('offline-state').textContent = 'Hay una actualización preparada. Para abrirla, cerrá las pestañas de la actividad y volvé a entrar.'; };
-    updated(); registration.addEventListener('updatefound', () => registration.installing?.addEventListener('statechange', updated));
-  } catch { $('offline-state').textContent = 'No se pudo preparar el uso sin conexión. Podés continuar con internet y guardar tu ficha.'; }
-}
-prepareOffline();
+prepareOffline($('offline-state'));

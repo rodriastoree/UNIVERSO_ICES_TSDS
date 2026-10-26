@@ -4,6 +4,10 @@ Actividad individual para acercarse a la Tecnicatura Superior en Desarrollo de S
 
 ## Recorrido actual
 
+La dirección del QR abre primero una bienvenida con el video del stand y el botón **Comenzar mi desafío**. La actividad está en `actividad.html`, con el mismo almacenamiento del navegador. Si hay un borrador se ofrece **Continuar mi idea**; no se borra ni modifica desde la bienvenida. Los enlaces antiguos `/#paso-1` a `/#paso-8` siguen llevando a la actividad, que conserva sus validaciones. También se puede volver a la bienvenida sin perder respuestas.
+
+El video original dura 24 segundos, es 1920×1080 y no tiene audio. Se reproduce manualmente con controles nativos y una alternativa textual. Usa `preload="none"`, una portada de aproximadamente 100 KB y no forma parte de la caché sin conexión. Así no se descargan sus 4,5 MB solo por abrir la página. Si el video falla o no hay conexión, el botón para comenzar sigue disponible. El servidor local admite el tipo `video/mp4` y rangos de bytes para reproducción y búsqueda; Vercel sirve el archivo estático.
+
 1. Elegir una situación y nombrar la app. La misión propia exige describir el problema.
 2. Definir personas y rol. La misión propia permite escribir quiénes usarían la app.
 3. Elegir exactamente tres funciones diferentes; en una idea propia se pueden escribir hasta tres funciones y combinarlas con sugerencias.

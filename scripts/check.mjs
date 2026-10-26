@@ -10,4 +10,5 @@ function visit(dir) {
 }
 visit('public'); visit('scripts'); visit('tests');
 execFileSync(process.execPath, ['--check', 'dev-server.mjs'], { stdio: 'inherit' });
+execFileSync(process.execPath, ['--check', 'range.mjs'], { stdio: 'inherit' });
 console.log('Sintaxis correcta en los módulos actuales y las versiones conservadas.');
