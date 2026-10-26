@@ -5,16 +5,15 @@ import vm from 'node:vm';
 import { parseSaved, migrateV3 } from '../public/validation.js';
 const script = (await readFile('public/welcome.js', 'utf8')).split('\n').filter(line => !line.startsWith('import ')).join('\n');
 function entry({ current = null, previous = null, hash = '', blocked = false } = {}) {
-  const elements = new Map(), events = {}, videoEvents = {}, sourceEvents = {};
-  let writes = 0, redirect = null, pauses = 0, plays = 0, offline = false;
-  const video = { paused: false, addEventListener: (name, action) => { videoEvents[name] = action; }, querySelector: () => ({ addEventListener: (name, action) => { sourceEvents[name] = action; } }), pause: () => { video.paused = true; pauses++; }, play: () => { video.paused = false; plays++; return Promise.resolve(); } };
-  const document = { hidden: false, getElementById: id => { if (id === 'intro-video') return video; if (!elements.has(id)) elements.set(id, { hidden: true, textContent: '' }); return elements.get(id); }, querySelectorAll: () => [], addEventListener: (name, action) => { events[name] = action; } };
+  const elements = new Map(), events = {};
+  let writes = 0, redirect = null, offline = false, intro = false;
+  const document = { getElementById: id => { if (!elements.has(id)) elements.set(id, { hidden: true, textContent: '' }); return elements.get(id); } };
   vm.runInNewContext(script, { document, URL, parseSaved, migrateV3,
     location: { hash, href: 'https://universo-ices.vercel.app/' + hash, replace: value => { redirect = value; } },
     localStorage: { getItem: key => { if (blocked) throw new Error('Bloqueado'); return key.endsWith('v4') ? current : previous; }, setItem: () => { writes++; } },
-    addEventListener: (name, action) => { events[name] = action; }, prepareOffline: () => { offline = true; }
+    addEventListener: (name, action) => { events[name] = action; }, prepareOffline: () => { offline = true; }, startIntro: () => { intro = true; }
   });
-  return { elements, events, videoEvents, sourceEvents, document, video, redirect, get pauses() { return pauses; }, get plays() { return plays; }, get writes() { return writes; }, get offline() { return offline; } };
+  return { elements, events, redirect, get intro() { return intro; }, get writes() { return writes; }, get offline() { return offline; } };
 }
 test('una visita nueva ofrece comenzar, sin escribir respuestas ni entrar automáticamente', () => {
   const result = entry();
@@ -39,22 +38,16 @@ test('los enlaces anteriores con etapas van a la actividad; otros fragmentos per
   for (let n = 1; n <= 8; n++) assert.equal(entry({ hash: `#paso-${n}` }).redirect, `https://universo-ices.vercel.app/actividad.html#paso-${n}`);
   for (const hash of ['', '#video-idea', '#el-desafio', '#paso-99', '#javascript:alert(1)']) assert.equal(entry({ hash }).redirect, null);
 });
-test('el video se puede abandonar y los errores ofrecen continuar con el desafío', () => {
-  const result = entry();
-  result.events.pagehide(); assert.equal(result.pauses, 1);
-  result.document.hidden = true; result.events.visibilitychange(); assert.equal(result.pauses, 2);
-  result.document.hidden = false; result.events.visibilitychange(); assert.equal(result.plays, 1);
-  result.video.pause();
-  result.document.hidden = true; result.events.visibilitychange();
-  result.document.hidden = false; result.events.visibilitychange(); assert.equal(result.plays, 1, 'respeta la pausa manual');
-  result.videoEvents.error(); assert.equal(result.elements.get('video-error').hidden, false);
+test('la bienvenida inicia la animación integrada sin modificar respuestas', () => {
+  const result = entry(); assert.equal(result.intro, true); assert.equal(result.writes, 0);
 });
-test('la entrada y la actividad son documentos distintos, con video opcional y alternativa textual', async () => {
+
+test('la entrada y la actividad son documentos distintos, con animación nativa y alternativa textual', async () => {
   const [index, activity] = await Promise.all(['public/index.html', 'public/actividad.html'].map(path => readFile(path, 'utf8')));
   assert.match(index, /href="\.\/actividad.html"/); assert.doesNotMatch(index, /id="activity-form"|id="workspace"/);
-  for (const attribute of ['autoplay', 'muted', 'loop', 'playsinline', 'controls']) assert.match(index, new RegExp(`<video[^>]*\\s${attribute}(?:\\s|>)`));
-  assert.match(index, /Leer lo que presenta el video/); assert.match(activity, /src="\.\/app.js"/);
-  assert.match(index, /desarrollo-software\.mp4/); assert.doesNotMatch(index, /Desarrollo de Software en 20 segundos/);
-  assert.doesNotMatch(index, /video-stand|Desde nuestro stand|video del stand|24 segundos/);
+  assert.doesNotMatch(index, /<video|<source|\.mp4|poster=|Desarrollo de Software en 20 segundos/);
+  assert.match(index, /Leer toda la secuencia/); assert.match(index, /data-motion-toggle/);
+  assert.equal((index.match(/data-scene(?: hidden)?>/g) || []).length, 4);
+  assert.match(index, /intro\.css/); assert.match(activity, /src="\.\/app.js"/);
   assert.match(activity, /Volver a la bienvenida/);
 });
